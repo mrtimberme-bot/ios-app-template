@@ -109,6 +109,35 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pr{background:#7c2d12;color:#fdba74} .px{background:#7f1d1d;color:#fca5a5}
 .po{background:#065f46;color:#6ee7b7} .pu{background:#312e81;color:#c7d2fe}
 @media(max-width:720px){.timeline,.header,.legend,#statusbar,#pgwrap{padding-left:16px;padding-right:16px}.phase-body.c2,.phase-body.c3{grid-template-columns:1fr}}
+/* Start fase button */
+.start-fase-btn{padding:4px 14px;border-radius:6px;background:#1e3a5f;color:#93c5fd;border:1px solid var(--ip);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}
+.start-fase-btn:hover{background:#1a3050}
+/* Current phase highlight */
+.phase-group.current-phase>.phase-header{background:#0c1a2e}
+.phase-group.current-phase{border-color:var(--ip)}
+/* Manual steps */
+.ms-section{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ms-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--manual);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.ms-progress{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
+.ms-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+.ms-item:last-child{border-bottom:none}
+.ms-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--manual-border);background:var(--manual-bg);cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent}
+.ms-check.done{background:var(--auto-bg);border-color:var(--auto-border);color:var(--ok)}
+.ms-right{flex:1;min-width:0}
+.ms-label-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ms-label{font-size:13px;color:var(--text)}
+.ms-label.done{text-decoration:line-through;color:var(--muted)}
+.ms-instr-btn{font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;padding:2px 7px;border-radius:4px;white-space:nowrap;transition:all .15s}
+.ms-instr-btn:hover{background:var(--surface2);color:var(--text)}
+.ms-verify-btn{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);cursor:pointer;white-space:nowrap;transition:all .15s}
+.ms-verify-btn:hover{background:#0c1a2e;color:#93c5fd;border-color:var(--ip)}
+.ms-verify-btn.ok{color:var(--ok);border-color:var(--auto-border);background:var(--auto-bg)}
+.ms-verify-btn.fail{color:var(--err);border-color:#7f1d1d;background:#1a0000}
+.ms-instr-box{display:none;background:#050a10;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;color:#e2e8f0;white-space:pre-wrap;margin-top:6px;line-height:1.6;max-height:280px;overflow-y:auto}
+.ms-instr-box.open{display:block}
+/* Current phase in progress bar */
+#cp-wrap{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+#cp-name{color:#93c5fd;font-weight:600}
 </style>
 </head>
 <body>
@@ -144,9 +173,37 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div id="pgtrack"><div id="pgfill" style="width:0%"></div></div>
   <span id="pgpct">0%</span>
   <div class="pdots" id="pdots"></div>
+  <div id="cp-wrap" style="display:none">📍 <span id="cp-name"></span></div>
 </div>
 
 <div class="timeline">
+
+<div class="phase-group" data-phase="market_research">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num" style="background:#0d2230;color:#67e8f9">0</div>
+    <div class="phase-title">Market Research — Markt & Concurrenten</div>
+    <div class="phase-meta">
+      <span class="phase-pct" style="background:#0d2230;color:#67e8f9;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600">60% auto</span>
+      <span class="badge badge-cmd">/ competitor-research</span>
+    </div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Commando &amp; Framework</div>
+      <div class="ir"><div class="it"><strong>/competitor-research</strong><div class="is">Top 50 apps scannen, feature matrix bouwen, review mining</div></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><span class="dp">📄 competitor-research.md</span><div class="is">Volledig framework — raadplegen bij uitvoering</div></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 workflow-gaps-analysis.md</span><div class="is">Wat professionele workflows extra doen</div></div></div>
+    </div>
+    <div class="card"><div class="ct">Output documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 research/app-list.md</span><div class="is">50 apps: landscape mapping</div></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 research/feature-matrix.md</span><div class="is">Kano + ICE geclassificeerd</div></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 research/review-insights.md</span><div class="is">Onvervulde behoeften uit reviews</div></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 research/perceptual-map.md</span><div class="is">Positionering ten opzichte van markt</div></div></div>
+      <div class="eg" style="margin-top:8px">Positioneringsstatement in docs/vision.md bijgewerkt.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
 
 <div class="phase-group open" data-phase="initiation">
   <div class="phase-header" onclick="toggle(this)">
@@ -590,6 +647,7 @@ let state = null, online = false;
 const timers = {};
 
 const PHASE_CMDS = {
+  market_research:     { claude:['/competitor-research'],                                          shell:['git-status'] },
   initiation:          { claude:['/new-app','/setup-certs'],                                       shell:[] },
   discovery:           { claude:[],                                                                shell:['git-status'] },
   feature_collection:  { claude:[],                                                                shell:[] },
@@ -651,18 +709,42 @@ function buildDots() {
 function applyState() {
   if (!state) return;
   let done = 0, total = Object.keys(state.phases).length;
+  let currentPhase = null;
   Object.entries(state.phases).forEach(([id, ph]) => {
     const s = ph.status || 'not_started';
     updatePill(id, s);
     const dot = document.getElementById('dot-' + id);
     if (dot) dot.className = 'pdot ' + s;
     if (s === 'completed') done++;
+    if (s === 'in_progress' && !currentPhase) currentPhase = id;
     const na = document.getElementById('notes-' + id);
     if (na && ph.notes) na.value = ph.notes;
+    // Start button visibility
+    const sb = document.getElementById('start-btn-' + id);
+    if (sb) sb.style.display = (s === 'not_started') ? '' : 'none';
+    // Current phase border highlight
+    const grp = document.querySelector('[data-phase="' + id + '"]');
+    if (grp) grp.classList.toggle('current-phase', s === 'in_progress');
+    // Restore manual steps done state
+    if (ph.manualSteps) {
+      Object.entries(ph.manualSteps).forEach(([stepId, isDone]) => applyMsCheck(id, stepId, isDone));
+      updateMsProgress(id);
+    }
   });
   const pct = total ? Math.round((done / total) * 100) : 0;
   document.getElementById('pgfill').style.width = pct + '%';
   document.getElementById('pgpct').textContent = pct + '%';
+  // Current phase indicator
+  const cpWrap = document.getElementById('cp-wrap');
+  const cpName = document.getElementById('cp-name');
+  if (cpWrap && cpName) {
+    if (currentPhase) {
+      cpName.textContent = PHASE_NAMES[currentPhase] || currentPhase.replace(/_/g, ' ');
+      cpWrap.style.display = 'flex';
+    } else {
+      cpWrap.style.display = 'none';
+    }
+  }
 }
 
 function updatePill(id, status) {
@@ -709,6 +791,23 @@ function injectPanels() {
       pill.title = 'Klik om status te wisselen';
       pill.addEventListener('click', e => cycleStatus(id, e));
       meta.insertBefore(pill, meta.firstChild);
+    }
+
+    // Start fase button in header
+    const hdr = grp.querySelector('.phase-header');
+    if (hdr && !hdr.querySelector('.start-fase-btn')) {
+      const btn = document.createElement('button');
+      btn.className = 'start-fase-btn';
+      btn.id = 'start-btn-' + id;
+      btn.textContent = '▶ Start';
+      btn.title = 'Start deze fase';
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        setStatus(id, 'in_progress');
+        if (!grp.classList.contains('open')) grp.classList.add('open');
+        grp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      hdr.insertBefore(btn, grp.querySelector('.chevron'));
     }
 
     const body = grp.querySelector('.phase-body');
@@ -800,6 +899,9 @@ function injectPanels() {
     });
 
     body.appendChild(panel);
+
+    // Manual steps section
+    injectManualSteps(id, body);
   });
   if (state) applyState();
 }
@@ -885,6 +987,221 @@ async function refreshStatus() {
 }
 
 function toggle(h) { h.parentElement.classList.toggle('open'); }
+
+// ════════════════════════════════════════════════════════════════════════════
+// MANUAL STEPS — handmatige stappen met instructies en verificatie
+// ════════════════════════════════════════════════════════════════════════════
+
+const PHASE_NAMES = {
+  market_research:'Market Research', initiation:'Initiation', discovery:'Discovery & Scoping',
+  feature_collection:'Feature-collectie', architecture:'Architectuur & Setup',
+  core_domain:'Core-domein', infrastructure:'Infrastructuur', vertical_slice:'Vertical Slice',
+  features:'Features bouwen', polish:'Polish & Accessibility', stabilisation:'Stabilisatie',
+  app_store_readiness:'App Store Readiness', pre_go_to_apple:'Pre-Go-To-Apple',
+  publication:'Publicatie', post_launch:'Post-Launch', update_cycle:'Update Cycle',
+};
+
+const MANUAL_STEPS = {
+  market_research: [
+    { id:'competitor_scan', label:'Top 50 apps identificeren (App Store + data.ai)',
+      instructions:'1. Zoek op je 3-5 kern-keywords in de App Store\n2. Noteer top 10 per keyword\n3. Check "Gerelateerde apps" bij top concurrenten\n4. Controleer top 100 Free/Paid in jouw categorie\n5. Voeg toe aan docs/research/app-list.md\n\nDoel: 50 apps in drie lagen (direct / indirect / adjacent)',
+      verify:{ path:'docs/research/app-list.md' } },
+    { id:'deep_analysis', label:'8-10 apps diep analyseren (installeren + review mining)',
+      instructions:'Installeer op clean test-account. Doorloop per app:\n- Onboarding volledig\n- Core happy path\n- Paywall flow\n\nReview mining:\n1-ster: wat crasht / ontbreekt / frustreert?\n5-ster: welke feature krijgt lof?\n\nSla op in: docs/research/deep-analysis.md',
+      verify:{ path:'docs/research/deep-analysis.md' } },
+    { id:'feature_matrix', label:'Feature matrix bouwen (Kano + ICE)',
+      instructions:'Zie docs/competitor-research.md voor volledig format.\n\nKolommen: Feature | App A | App B | ... | Kano | ICE | Prioriteit\n\nKano: Basic / Performance / Delight / Indifferent / Reverse\nICE = Impact × Confidence × Ease (elk 1-10)\n\nSla op in: docs/research/feature-matrix.md',
+      verify:{ path:'docs/research/feature-matrix.md' } },
+  ],
+  initiation: [
+    { id:'bundle_id_reg', label:'Bundle ID registreren (developer.apple.com)',
+      instructions:'1. developer.apple.com → Account → Certificates, IDs & Profiles → Identifiers\n2. Klik "+" → App IDs → App → Continue\n3. Description: [App Naam], Bundle ID: com.company.appnaam (Explicit)\n4. Selecteer Capabilities (Push Notifications, Sign in with Apple, etc.)\n5. Klik "Register"\n\nVereist MFA — kan niet geautomatiseerd worden.',
+      verify:null },
+    { id:'xcode_project', label:'xcodegen generate + open *.xcodeproj',
+      instructions:'In Terminal in de app directory:\n\n  xcodegen generate\n  open *.xcodeproj\n\nControleer in Xcode:\n- Folder structuur klopt (Features/, Services/, DesignSystem/)\n- Build compileert zonder errors (⌘+B)',
+      verify:{ path:'project.yml' } },
+    { id:'signing', label:'Signing & Capabilities instellen in Xcode',
+      instructions:'1. Open .xcodeproj in Xcode\n2. Selecteer app target → Signing & Capabilities\n3. Kies jouw Team (Apple ID moet ingelogd zijn)\n4. Zet "Automatically manage signing" aan\n5. Verifieer Bundle ID overeenkomt met Apple Developer Portal',
+      verify:null },
+    { id:'github_secrets', label:'GitHub Actions secrets instellen',
+      instructions:'Repo → Settings → Secrets → Actions → "New repository secret"\n\nVoeg toe:\n- ASC_KEY_ID — App Store Connect API Key ID\n- ASC_ISSUER_ID — App Store Connect Issuer ID\n- ASC_KEY_CONTENT — Inhoud .p8 bestand (base64)\n- MATCH_PASSWORD — Wachtwoord Fastlane Match repo\n- MATCH_GIT_BASIC_AUTHORIZATION — GitHub PAT voor Match repo\n\nAPI key: appstoreconnect.apple.com → Users → Keys → "+"',
+      verify:{ path:'.github/workflows/ci.yml' } },
+  ],
+  discovery: [
+    { id:'vision_doc', label:'docs/vision.md schrijven',
+      instructions:'Gebruik het "📝 Document invullen" formulier hieronder, of schrijf handmatig.\n\nStructuur:\n# Vision — [App Naam]\n\n## Probleem\n[Eén alinea.]\n\n## Doelgroep\n[Zo specifiek mogelijk.]\n\n## Kernbelofte\n[Wat doet jouw app in één zin?]\n\n## Jobs To Be Done\n[2-3 core jobs: "Als [gebruiker] wil ik [taak] zodat [resultaat]"]\n\n## Succescriteria\n[Over 6 maanden?]\n\n## Niet in scope v1.0\n[Bewust NIET gebouwd.]\n\nTip: /plan-feature laat Claude het reviewen.',
+      verify:{ path:'docs/vision.md' } },
+    { id:'jtbd_interviews', label:'JTBD interviews afnemen (5-8 personen)',
+      instructions:'Kernvraag (GEEN "welke features wil je?"):\n"Neem me mee naar de laatste keer dat je [probleem] tegenkwam. Wat deed je?"\n\nSwitch-vragen:\n1. Wanneer besloot je een oplossing te zoeken?\n2. Wat deed je daarvóór?\n3. Waarom was dat niet goed genoeg?\n4. Wat was de trigger om te wisselen?\n\nSla op in: docs/research/jtbd-notes.md\nFormat: datum · profiel · kernquote · top-3 frustraties\n\nMinimum 5. Herhaling in antwoorden = bewijs.',
+      verify:{ path:'docs/research/jtbd-notes.md' } },
+  ],
+  feature_collection: [
+    { id:'features_doc', label:'docs/features.md invullen (Killer/Must/Should/Could/Won\'t)',
+      instructions:'Gebruik /competitor-research output als basis.\n\nKlassificeer:\n- Killer: Differentieert, 0-2 concurrenten, "wow" (Kano: Delight)\n- Must Have: Verwacht door gebruikers, afwezigheid = uninstall (Basic)\n- Should Have: Verbetert product significant (Performance)\n- Could Have: Nice-to-have, weinig impact\n- Won\'t Have: Bewust weglaten — schrijf ook WAAROM\n\nMVP = Killer + Must Have, maximaal 7.\n\nICE voor twijfelgevallen: Impact × Confidence × Ease (1-10)\nICE < 100 → Could Have of Won\'t Have',
+      verify:{ path:'docs/features.md' } },
+  ],
+  architecture: [
+    { id:'decisions_doc', label:'docs/architecture/decisions.md invullen',
+      instructions:'Leg vast:\n\n## State Management\n@Observable (standaard) of TCA (complex state + side effects)?\n\n## Persistence\nSwiftData (standaard) / UserDefaults / Geen?\n\n## Authenticatie\nGeen / Sign in with Apple / Email?\n\n## Monetization\nFree / One-time / Subscription / Freemium?\n(Beïnvloedt architectuur!)\n\n## Backend API\nGeen / Eigen / Firebase / Supabase?\n\nGebruik /plan-feature voor evaluatie door Claude.',
+      verify:{ path:'docs/architecture/decisions.md' } },
+    { id:'xcode_capabilities', label:'Xcode Capabilities toevoegen',
+      instructions:'Xcode → Target → Signing & Capabilities → "+":\n\nAltijd (als gebruikt):\n- Push Notifications\n- Background Modes\n\nOptioneel:\n- In-App Purchase (StoreKit)\n- Sign in with Apple\n- HealthKit, HomeKit, etc.\n\nNa toevoegen: /privacy-manifest skill uitvoeren.',
+      verify:null },
+  ],
+  app_store_readiness: [
+    { id:'screenshots', label:'App Store screenshots genereren',
+      instructions:'Vereiste sizes:\n- iPhone 6.7" (1290×2796) — verplicht\n- iPad 12.9" (2048×2732) — als iPad ondersteund\n\nOpties:\n1. Fastlane Snapshots: fastlane snapshot\n2. Handmatig: Xcode Simulator → ⌘+S\n\nRegels eerste screenshot:\n- Toon kernwaardepropositie\n- Geen tekst als enige inhoud\n\nGebruik /design-review voor feedback.',
+      verify:null },
+    { id:'privacy_policy', label:'Privacy policy URL publiceren en instellen',
+      instructions:'Verplicht voor App Store submission.\n\nSnel genereren:\napp-privacy-policy-generator.firebaseapp.com\n\nHosting:\n- GitHub Pages (gratis): Repo → Settings → Pages\n- Eigen website\n\nVereiste inhoud:\n- Welke data wordt verzameld\n- Hoe data gebruikt wordt\n- Contact informatie\n- Verwijderprocedure\n\nInstellen: App Store Connect → App Information → Privacy Policy URL',
+      verify:null },
+    { id:'aso_metadata', label:'App Store metadata invullen (ASO)',
+      instructions:'fastlane/metadata/en-US/ of App Store Connect:\n\nname.txt (max 30 tekens) — bevat primair zoekwoord\nsubtitle.txt (max 30 tekens) — secundaire zoekwoorden\n\ndescription.txt:\n- Eerste 3 regels meest zichtbaar\n- Kernzoekwoorden in eerste 2 zinnen\n- Bullets voor features\n\nkeywords.txt (max 100 tekens totaal):\n- Geen woorden al in naam/subtitle\n- Geen competitor namen\n\nGebruik docs/research/feature-matrix.md voor keyword-inspiratie.',
+      verify:{ path:'fastlane/metadata/en-US/name.txt' } },
+  ],
+  publication: [
+    { id:'testflight_test', label:'TestFlight build handmatig testen',
+      instructions:'Na /ship stap 7 (TestFlight upload klaar):\n\n1. Open TestFlight op iPhone\n2. Installeer nieuwe build\n\nTest golden path:\n- Onboarding (clean state — verwijder app eerst)\n- Alle MVP features\n- Monetization flow\n- Offline gedrag (vliegtuigstand)\n\nTest edge cases:\n- Lege staat (geen data)\n- Error states\n- Donker/licht\n\nGoedkeuren: antwoord "ja" op Claude.\nBug gevonden: /start-feature fix/<naam> → fix → /wrap-feature.',
+      verify:null },
+  ],
+  post_launch: [
+    { id:'reviews_read', label:'App Store reviews lezen en beantwoorden',
+      instructions:'App Store Connect → My Apps → Activity → Ratings and Reviews\n\nDag 1:\n- Lees alle nieuwe reviews\n- Beantwoord 1-ster binnen 24u\n- Crash > 5%: hotfix vandaag\n\nDag 7:\n- 3+ gelijksoortige klachten = actie\n- GitHub issues aanmaken voor bugs\n\nTemplate:\n"Bedankt voor je feedback. [Ingaan op klacht]. We werken aan [actie]."\n\nDag 30: App Analytics → welke features worden gebruikt?\n→ Feedback naar backlog voor volgende versie',
+      verify:null },
+  ],
+};
+
+function injectManualSteps(id, body) {
+  const steps = MANUAL_STEPS[id];
+  if (!steps || !steps.length) return;
+
+  const section = document.createElement('div');
+  section.className = 'ms-section';
+  section.id = 'ms-section-' + id;
+
+  const titleRow = document.createElement('div');
+  titleRow.className = 'ms-title';
+  const titleText = document.createElement('span');
+  titleText.textContent = '⚠️ Handmatige stappen';
+  const prog = document.createElement('span');
+  prog.className = 'ms-progress';
+  prog.id = 'ms-prog-' + id;
+  prog.textContent = '0/' + steps.length;
+  titleRow.appendChild(titleText);
+  titleRow.appendChild(prog);
+  section.appendChild(titleRow);
+
+  steps.forEach(step => {
+    const item = document.createElement('div');
+    item.className = 'ms-item';
+
+    const check = document.createElement('div');
+    check.className = 'ms-check';
+    check.id = 'ms-check-' + id + '-' + step.id;
+    check.title = 'Markeer als gedaan';
+    check.addEventListener('click', () => toggleMsCheck(id, step.id));
+    item.appendChild(check);
+
+    const right = document.createElement('div');
+    right.className = 'ms-right';
+
+    const labelRow = document.createElement('div');
+    labelRow.className = 'ms-label-row';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'ms-label';
+    lbl.id = 'ms-lbl-' + id + '-' + step.id;
+    lbl.textContent = step.label;
+    labelRow.appendChild(lbl);
+
+    const instrBtn = document.createElement('button');
+    instrBtn.className = 'ms-instr-btn';
+    instrBtn.textContent = 'ℹ️ Instructies';
+    instrBtn.addEventListener('click', () => toggleMsInstr(id, step.id));
+    labelRow.appendChild(instrBtn);
+
+    if (step.verify) {
+      const vBtn = document.createElement('button');
+      vBtn.className = 'ms-verify-btn';
+      vBtn.id = 'ms-vbtn-' + id + '-' + step.id;
+      vBtn.textContent = '✓ Verifiëren';
+      vBtn.addEventListener('click', () => verifyStep(id, step.id, step.verify, vBtn));
+      labelRow.appendChild(vBtn);
+    }
+
+    right.appendChild(labelRow);
+
+    const instrBox = document.createElement('div');
+    instrBox.className = 'ms-instr-box';
+    instrBox.id = 'ms-instr-' + id + '-' + step.id;
+    instrBox.textContent = step.instructions;
+    right.appendChild(instrBox);
+
+    item.appendChild(right);
+    section.appendChild(item);
+  });
+
+  body.appendChild(section);
+}
+
+function toggleMsInstr(phaseId, stepId) {
+  const box = document.getElementById('ms-instr-' + phaseId + '-' + stepId);
+  if (box) box.classList.toggle('open');
+}
+
+async function toggleMsCheck(phaseId, stepId) {
+  if (!state) state = { phases: {} };
+  if (!state.phases[phaseId]) state.phases[phaseId] = {};
+  if (!state.phases[phaseId].manualSteps) state.phases[phaseId].manualSteps = {};
+  const next = !state.phases[phaseId].manualSteps[stepId];
+  state.phases[phaseId].manualSteps[stepId] = next;
+  applyMsCheck(phaseId, stepId, next);
+  updateMsProgress(phaseId);
+  if (online) {
+    await fetch(API + '/api/state', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phases:{ [phaseId]:{ manualSteps: state.phases[phaseId].manualSteps } } }),
+    }).catch(() => {});
+  }
+}
+
+function applyMsCheck(phaseId, stepId, done) {
+  const check = document.getElementById('ms-check-' + phaseId + '-' + stepId);
+  const lbl   = document.getElementById('ms-lbl-'   + phaseId + '-' + stepId);
+  if (check) { check.className = 'ms-check' + (done ? ' done' : ''); check.textContent = done ? '✓' : ''; }
+  if (lbl)   { lbl.className   = 'ms-label'  + (done ? ' done' : ''); }
+}
+
+function updateMsProgress(phaseId) {
+  const steps = MANUAL_STEPS[phaseId];
+  if (!steps) return;
+  const prog = document.getElementById('ms-prog-' + phaseId);
+  if (!prog) return;
+  const done = steps.filter(s => state.phases[phaseId]?.manualSteps?.[s.id]).length;
+  prog.textContent = done + '/' + steps.length;
+}
+
+async function verifyStep(phaseId, stepId, verifyDef, btn) {
+  if (!online) { btn.textContent = '⚠️ Offline'; setTimeout(() => { btn.textContent = '✓ Verifiëren'; }, 3000); return; }
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const r = await fetch(API + '/api/read-doc?path=' + encodeURIComponent(verifyDef.path));
+    const d = await r.json();
+    if (d.exists && d.content && d.content.trim().length > 10) {
+      btn.textContent = '✓ Gevonden';
+      btn.className = 'ms-verify-btn ok';
+      if (!state.phases[phaseId]?.manualSteps?.[stepId]) await toggleMsCheck(phaseId, stepId);
+    } else {
+      btn.textContent = d.exists ? '⚠️ Leeg' : '✗ Niet gevonden';
+      btn.className = 'ms-verify-btn fail';
+    }
+  } catch {
+    btn.textContent = '⚠️ Fout';
+    btn.className = 'ms-verify-btn fail';
+  }
+  setTimeout(() => { btn.textContent = orig; btn.className = 'ms-verify-btn'; }, 5000);
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // FORMS — per-phase document builders

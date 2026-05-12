@@ -38,10 +38,11 @@ function buildDefault() {
 
   const phases = {};
   [
+    'market_research',
     'initiation','discovery','feature_collection','architecture','core_domain',
     'infrastructure','vertical_slice','features','polish','stabilisation',
     'app_store_readiness','pre_go_to_apple','publication','post_launch','update_cycle',
-  ].forEach(p => { phases[p] = { status: 'not_started', notes: '', updatedAt: null }; });
+  ].forEach(p => { phases[p] = { status: 'not_started', notes: '', manualSteps: {}, updatedAt: null }; });
 
   return { appName, projectPath, phases, updatedAt: new Date().toISOString() };
 }
