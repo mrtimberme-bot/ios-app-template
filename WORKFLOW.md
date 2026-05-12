@@ -44,6 +44,24 @@ FASE 7  Update cycle    → terug naar fase 3         95% auto
 
 ---
 
+## PRE-FASE — Market Research
+
+**Doel:** Vóór je begint te bouwen: weten of je het juiste probleem oplost en waar de markt open ligt.
+
+```
+/competitor-research    ← top 50 apps analyseren, feature matrix, review mining
+```
+
+Output:
+- `docs/research/feature-matrix.md` — alle features van concurrenten, Kano + ICE geclassificeerd
+- `docs/research/review-insights.md` — onvervulde behoeften uit App Store reviews
+- `docs/research/perceptual-map.md` — positionering ten opzichte van markt
+
+Zie `docs/competitor-research.md` voor het volledige framework.  
+Zie `docs/workflow-gaps-analysis.md` voor de volledige analyse van wat professionele workflows extra doen.
+
+---
+
 ## FASE 1 — Initiation
 
 **Doel:** Nieuwe app in ~30 minuten klaarstaat om aan te werken.
@@ -303,6 +321,7 @@ Als je iets beters ontdekt in je app:
 
 | Commando | Fase | Wat het doet |
 |---------|------|-------------|
+| `/competitor-research` | Pre-fase | Top 50 apps analyseren, feature matrix, Kano + ICE |
 | `/new-app` | Initiation | Nieuwe app aanmaken vanuit template |
 | `/setup-certs` | Initiation | Fastlane match code signing instellen |
 | `/plan-feature` | Development | Feature plannen met ultrathink |

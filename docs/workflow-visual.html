@@ -886,6 +886,461 @@ async function refreshStatus() {
 
 function toggle(h) { h.parentElement.classList.toggle('open'); }
 
+// ════════════════════════════════════════════════════════════════════════════
+// FORMS — per-phase document builders
+// ════════════════════════════════════════════════════════════════════════════
+
+const PHASE_FORMS = {
+  initiation: {
+    title: 'App configuratie',
+    docPath: null,
+    stateKey: 'appConfig',
+    fields: [
+      { id:'appName',      label:'App Naam (PascalCase)',    type:'text',     ph:'MijnApp' },
+      { id:'bundleId',     label:'Bundle ID',                type:'text',     ph:'com.company.mijnapp' },
+      { id:'teamId',       label:'Apple Team ID',            type:'text',     ph:'ABC123DEF4' },
+      { id:'githubOrg',    label:'GitHub Org / Username',    type:'text',     ph:'timothystekkinger' },
+      { id:'description',  label:'App beschrijving (1 zin)', type:'text',     ph:'De app die ...' },
+      { id:'monetization', label:'Monetization',             type:'select',   opts:['gratis','storekit','subscriptions'] },
+    ],
+  },
+  discovery: {
+    title: 'Vision document',
+    docPath: 'docs/vision.md',
+    stateKey: 'vision',
+    fields: [
+      { id:'problem',         label:'Probleem (1 alinea)',               type:'textarea', ph:'Welk probleem lost de app op?' },
+      { id:'targetUser',      label:'Doelgroep',                          type:'text',     ph:'Wie heeft dit probleem specifiek?' },
+      { id:'corePromise',     label:'Kernbelofte (1 zin)',                type:'text',     ph:'De app laat gebruikers...' },
+      { id:'successCriteria', label:'Succescriteria (over 6 maanden)',    type:'textarea', ph:'Hoe weet je of het gewerkt heeft?' },
+      { id:'outOfScope',      label:'Valt NIET in v1.0',                  type:'textarea', ph:'Wat ga je bewust nu NIET bouwen?' },
+    ],
+    generate(d) {
+      const app = (state && state.appConfig && state.appConfig.appName) || '{{APP_NAME}}';
+      return `# Vision — ${app}\n\n## Probleem\n${d.problem||''}\n\n## Doelgroep\n${d.targetUser||''}\n\n## Kernbelofte\n${d.corePromise||''}\n\n## Succescriteria\n${d.successCriteria||''}\n\n## Scope — valt NIET in v1.0\n${d.outOfScope||''}\n`;
+    },
+  },
+  feature_collection: {
+    title: 'Feature lijst',
+    docPath: 'docs/features.md',
+    stateKey: 'featureList',
+    isList: true,
+    generate(items) {
+      const groups = { 'MVP-must':[], 'MVP-nice':[], 'Post-MVP':[], 'Nooit':[] };
+      (items||[]).forEach(f => { if (groups[f.label]) groups[f.label].push(f.name); });
+      let md = '# Features\n\n';
+      Object.entries(groups).forEach(([lbl, arr]) => {
+        md += `## ${lbl}\n`;
+        if (arr.length) arr.forEach(n => { md += `- ${n}\n`; });
+        else md += '_Geen_\n';
+        md += '\n';
+      });
+      return md;
+    },
+  },
+  architecture: {
+    title: 'Architectuur beslissingen',
+    docPath: 'docs/architecture/decisions.md',
+    stateKey: 'archDecisions',
+    fields: [
+      { id:'stateChoice',        label:'State management',  type:'select', opts:['@Observable (standaard)','TCA (The Composable Architecture)','Combinatie @Observable + TCA'] },
+      { id:'persistenceChoice',  label:'Persistence',       type:'select', opts:['SwiftData (standaard)','UserDefaults (eenvoudig)','Geen (stateless)'] },
+      { id:'backendChoice',      label:'Backend',           type:'select', opts:['Geen backend (standaard)','Eigen server','Firebase','Supabase','Andere'] },
+      { id:'authChoice',         label:'Authenticatie',     type:'select', opts:['Geen','Sign in with Apple','Email + wachtwoord','Sign in with Apple + Email'] },
+      { id:'monetizationDetail', label:'Monetization detail', type:'textarea', ph:'Prijsstrategie, IAP-items, subscription tiers…', rows:2 },
+      { id:'externalApis',       label:'Externe APIs / SDKs', type:'textarea', ph:'Welke externe services gebruik je?', rows:2 },
+    ],
+    generate(d) {
+      return `# Architectuur Beslissingen\n\n## State Management\n${d.stateChoice||''}\n\n## Persistence\n${d.persistenceChoice||''}\n\n## Backend\n${d.backendChoice||''}\n\n## Authenticatie\n${d.authChoice||''}\n\n## Monetization\n${d.monetizationDetail||''}\n\n## Externe APIs / SDKs\n${d.externalApis||''}\n`;
+    },
+  },
+};
+
+// ── Inject form buttons into phases that have forms ──────────────────────────
+function injectFormButtons() {
+  Object.entries(PHASE_FORMS).forEach(([id, def]) => {
+    const grp  = document.querySelector('[data-phase="' + id + '"]');
+    const body = grp && grp.querySelector('.phase-body');
+    if (!body) return;
+
+    // "📝 Invullen" toggle button row
+    const toggleRow = document.createElement('div');
+    toggleRow.style.cssText = 'grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'form-toggle-btn';
+    toggleBtn.id = 'ftoggle-' + id;
+    toggleBtn.textContent = '📝 Document invullen ▾';
+    toggleRow.appendChild(toggleBtn);
+    body.appendChild(toggleRow);
+
+    // Form panel (hidden until toggled)
+    const formPanel = document.createElement('div');
+    formPanel.className = 'form-panel';
+    formPanel.id = 'fpanel-' + id;
+    formPanel.style.cssText = 'grid-column:1/-1;display:none';
+    buildFormContent(id, def, formPanel);
+    body.appendChild(formPanel);
+
+    toggleBtn.addEventListener('click', () => {
+      const open = formPanel.style.display !== 'none';
+      formPanel.style.display = open ? 'none' : 'block';
+      toggleBtn.textContent = open ? '📝 Document invullen ▾' : '📝 Document invullen ▴';
+      if (!open) loadFormData(id, def);
+    });
+  });
+}
+
+function buildFormContent(id, def, container) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:8px';
+
+  const title = document.createElement('div');
+  title.className = 'ct';
+  title.textContent = def.title;
+  wrap.appendChild(title);
+
+  if (def.isList) {
+    buildFeatureList(id, def, wrap);
+  } else {
+    (def.fields || []).forEach(f => {
+      wrap.appendChild(buildField(id, f));
+    });
+  }
+
+  // Buttons row
+  const brow = document.createElement('div');
+  brow.style.cssText = 'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'stbtn s';
+  saveBtn.textContent = '💾 Opslaan in dashboard';
+  saveBtn.addEventListener('click', () => saveFormData(id, def));
+  brow.appendChild(saveBtn);
+
+  if (def.docPath || def.isList) {
+    const genBtn = document.createElement('button');
+    genBtn.className = 'stbtn c';
+    genBtn.textContent = '📄 Genereer ' + (def.docPath ? def.docPath.split('/').pop() : 'document');
+    genBtn.addEventListener('click', () => generateAndSaveDoc(id, def));
+    brow.appendChild(genBtn);
+  }
+
+  const savedMsg = document.createElement('span');
+  savedMsg.className = 'nsaved';
+  savedMsg.id = 'fsaved-' + id;
+  savedMsg.textContent = '✓ Opgeslagen';
+  brow.appendChild(savedMsg);
+
+  wrap.appendChild(brow);
+  container.appendChild(wrap);
+}
+
+function buildField(phaseId, f) {
+  const row = document.createElement('div');
+  row.style.cssText = 'margin-bottom:10px';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = f.label;
+  lbl.style.cssText = 'display:block;font-size:11px;color:var(--muted);margin-bottom:4px';
+  row.appendChild(lbl);
+
+  let input;
+  if (f.type === 'textarea') {
+    input = document.createElement('textarea');
+    input.rows = f.rows || 3;
+  } else if (f.type === 'select') {
+    input = document.createElement('select');
+    (f.opts || []).forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt; o.textContent = opt;
+      input.appendChild(o);
+    });
+  } else {
+    input = document.createElement('input');
+    input.type = 'text';
+    if (f.ph) input.placeholder = f.ph;
+  }
+  input.id = 'ff-' + phaseId + '-' + f.id;
+  input.style.cssText = 'width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:7px 9px;font-family:inherit;outline:none';
+  input.addEventListener('focus', () => { input.style.borderColor = 'var(--ip)'; });
+  input.addEventListener('blur',  () => { input.style.borderColor = 'var(--border)'; });
+  row.appendChild(input);
+  return row;
+}
+
+// Feature list builder
+function buildFeatureList(id, def, container) {
+  const listWrap = document.createElement('div');
+  listWrap.id = 'flist-' + id;
+  listWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px';
+  container.appendChild(listWrap);
+
+  const addRow = document.createElement('div');
+  addRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px';
+  const addInput = document.createElement('input');
+  addInput.type = 'text'; addInput.placeholder = 'Feature naam…';
+  addInput.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 9px;font-family:inherit;outline:none';
+  const addSel = document.createElement('select');
+  ['MVP-must','MVP-nice','Post-MVP','Nooit'].forEach(lbl => {
+    const o = document.createElement('option'); o.value = lbl; o.textContent = lbl;
+    addSel.appendChild(o);
+  });
+  addSel.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 9px';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'cbtn'; addBtn.textContent = '+ Voeg toe';
+  addBtn.addEventListener('click', () => {
+    const name = addInput.value.trim();
+    if (!name) return;
+    appendFeatureRow(listWrap, id, { name, label: addSel.value });
+    addInput.value = '';
+  });
+  addInput.addEventListener('keydown', e => { if (e.key === 'Enter') addBtn.click(); });
+  addRow.appendChild(addInput); addRow.appendChild(addSel); addRow.appendChild(addBtn);
+  container.appendChild(addRow);
+  container.appendChild(listWrap);
+}
+
+function appendFeatureRow(listWrap, id, item) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  row.dataset.name  = item.name;
+  row.dataset.label = item.label;
+
+  const name = document.createElement('span');
+  name.textContent = item.name;
+  name.style.cssText = 'flex:1;font-size:12px;color:var(--text)';
+
+  const lblColors = { 'MVP-must':'#052e16;color:#86efac', 'MVP-nice':'#0c1a2e;color:#93c5fd', 'Post-MVP':'#1e293b;color:var(--muted)', 'Nooit':'#1a0000;color:#fca5a5' };
+  const lbl = document.createElement('span');
+  lbl.textContent = item.label;
+  lbl.style.cssText = 'font-size:10px;padding:2px 7px;border-radius:4px;background:' + (lblColors[item.label] || '#1e293b;color:var(--muted)');
+
+  const del = document.createElement('button');
+  del.textContent = '×';
+  del.style.cssText = 'background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px';
+  del.addEventListener('click', () => row.remove());
+
+  row.appendChild(name); row.appendChild(lbl); row.appendChild(del);
+  listWrap.appendChild(row);
+}
+
+// ── Load / save form data ────────────────────────────────────────────────────
+function loadFormData(id, def) {
+  const data = state && state.phases && state.phases[id] && state.phases[id][def.stateKey];
+  if (!data) return;
+  if (def.isList) {
+    const listWrap = document.getElementById('flist-' + id);
+    if (!listWrap) return;
+    while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
+    (data || []).forEach(item => appendFeatureRow(listWrap, id, item));
+  } else {
+    (def.fields || []).forEach(f => {
+      const el = document.getElementById('ff-' + id + '-' + f.id);
+      if (el && data[f.id] !== undefined) el.value = data[f.id];
+    });
+  }
+}
+
+async function saveFormData(id, def) {
+  const data = def.isList ? readFeatureList(id) : readFieldValues(id, def);
+  if (!state) return;
+  if (!state.phases[id]) state.phases[id] = { status:'not_started', notes:'' };
+  state.phases[id][def.stateKey] = data;
+  // Also update appName in state root if initiation
+  if (id === 'initiation' && data.appName) {
+    state.appName = data.appName;
+    document.getElementById('sbapp').textContent = data.appName;
+  }
+  if (online) {
+    const patch = { phases: { [id]: { [def.stateKey]: data } } };
+    if (id === 'initiation' && data.appName) patch.appName = data.appName;
+    await fetch(API + '/api/state', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }).catch(() => {});
+  }
+  flash('fsaved-' + id);
+}
+
+async function generateAndSaveDoc(id, def) {
+  await saveFormData(id, def);
+  const data = def.isList ? readFeatureList(id) : readFieldValues(id, def);
+  const content = def.generate ? def.generate(data) : '';
+  if (!content || !def.docPath) return;
+  if (!online) { window.alert('Server niet actief — sla het document handmatig op.'); return; }
+  const r = await fetch(API + '/api/write-doc', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: def.docPath, content }),
+  }).catch(() => null);
+  if (r && r.ok) flash('fsaved-' + id, '✓ Document opgeslagen: ' + def.docPath);
+}
+
+function readFieldValues(id, def) {
+  const out = {};
+  (def.fields || []).forEach(f => {
+    const el = document.getElementById('ff-' + id + '-' + f.id);
+    if (el) out[f.id] = el.value;
+  });
+  return out;
+}
+
+function readFeatureList(id) {
+  const listWrap = document.getElementById('flist-' + id);
+  if (!listWrap) return [];
+  return Array.from(listWrap.children).map(row => ({ name: row.dataset.name, label: row.dataset.label }));
+}
+
+function flash(elId, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (msg) el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => { el.classList.remove('show'); if (msg) el.textContent = '✓ Opgeslagen'; }, 3000);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ASK CLAUDE — floating panel
+// ════════════════════════════════════════════════════════════════════════════
+function buildAskClaudePanel() {
+  // Floating button
+  const fab = document.createElement('button');
+  fab.id = 'ac-fab';
+  fab.textContent = '💬 Vraag Claude';
+  fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:200;padding:10px 18px;border-radius:24px;background:#312e81;color:#a5b4fc;border:1px solid #4338ca;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 24px rgba(0,0,0,.5);transition:background .15s';
+  fab.addEventListener('mouseenter', () => { fab.style.background = '#3730a3'; });
+  fab.addEventListener('mouseleave', () => { fab.style.background = '#312e81'; });
+  fab.addEventListener('click', () => {
+    const panel = document.getElementById('ac-panel');
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'flex';
+    fab.textContent = isOpen ? '💬 Vraag Claude' : '✕ Sluiten';
+  });
+  document.body.appendChild(fab);
+
+  // Panel
+  const panel = document.createElement('div');
+  panel.id = 'ac-panel';
+  panel.style.cssText = 'display:none;position:fixed;bottom:70px;right:24px;z-index:199;width:420px;max-width:calc(100vw - 48px);background:#0f1117;border:1px solid #312e81;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6);flex-direction:column;overflow:hidden';
+
+  // Panel header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'background:#1e1b4b;padding:12px 16px;border-bottom:1px solid #312e81';
+  const htitle = document.createElement('div');
+  htitle.style.cssText = 'font-size:13px;font-weight:700;color:#a5b4fc';
+  htitle.textContent = '💬 Vraag / Onderzoek';
+  const hdesc = document.createElement('div');
+  hdesc.style.cssText = 'font-size:11px;color:var(--muted);margin-top:2px';
+  hdesc.textContent = 'Stuur een vraag of onderzoeksopdracht naar Claude Code';
+  hdr.appendChild(htitle); hdr.appendChild(hdesc);
+  panel.appendChild(hdr);
+
+  // Body
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:14px;display:flex;flex-direction:column;gap:10px';
+
+  // Context selector
+  const ctxRow = document.createElement('div');
+  ctxRow.style.cssText = 'display:flex;gap:8px;align-items:center';
+  const ctxLbl = document.createElement('label');
+  ctxLbl.textContent = 'Context:';
+  ctxLbl.style.cssText = 'font-size:11px;color:var(--muted);white-space:nowrap';
+  const ctxSel = document.createElement('select');
+  ctxSel.id = 'ac-context';
+  ctxSel.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 8px';
+  const ctxOpts = [
+    ['none',         'Geen extra context'],
+    ['architecture', 'docs/architecture.md laden'],
+    ['current-phase','Huidige fase opladen'],
+    ['security',     'docs/security.md laden'],
+    ['testing',      'docs/testing-strategy.md laden'],
+    ['app-store',    'docs/app_store_readiness.md laden'],
+  ];
+  ctxOpts.forEach(([val, lbl]) => {
+    const o = document.createElement('option'); o.value = val; o.textContent = lbl;
+    ctxSel.appendChild(o);
+  });
+  ctxRow.appendChild(ctxLbl); ctxRow.appendChild(ctxSel);
+  body.appendChild(ctxRow);
+
+  // Textarea
+  const qa = document.createElement('textarea');
+  qa.id = 'ac-question';
+  qa.placeholder = 'Typ je vraag of onderzoeksopdracht…\n\nBijv: "Wat is de beste aanpak voor retry-logic in mijn URLSession-wrapper?" of "Onderzoek hoe ik phased rollout kan inrichten."';
+  qa.rows = 6;
+  qa.style.cssText = 'width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:9px;font-family:inherit;resize:vertical;outline:none';
+  qa.addEventListener('focus', () => { qa.style.borderColor = '#6366f1'; });
+  qa.addEventListener('blur',  () => { qa.style.borderColor = 'var(--border)'; });
+  body.appendChild(qa);
+
+  // Quick-fill buttons
+  const qfRow = document.createElement('div');
+  qfRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+  const qfLbl = document.createElement('span');
+  qfLbl.textContent = 'Snel:';
+  qfLbl.style.cssText = 'font-size:11px;color:var(--muted);align-self:center';
+  qfRow.appendChild(qfLbl);
+  [
+    'Wat is de volgende stap?',
+    'Review mijn aanpak',
+    'Hoe debug ik dit?',
+    'Wat zijn de risico\'s?',
+  ].forEach(txt => {
+    const btn = document.createElement('button');
+    btn.className = 'sbtn';
+    btn.style.cssText += ';font-size:11px;padding:3px 9px';
+    btn.textContent = txt;
+    btn.addEventListener('click', () => {
+      qa.value = qa.value ? qa.value + '\n\n' + txt : txt;
+      qa.focus();
+    });
+    qfRow.appendChild(btn);
+  });
+  body.appendChild(qfRow);
+
+  // Send button
+  const sendBtn = document.createElement('button');
+  sendBtn.style.cssText = 'background:#312e81;color:#a5b4fc;border:1px solid #4338ca;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s';
+  sendBtn.textContent = '⚡ Open in Claude Code';
+  sendBtn.addEventListener('mouseenter', () => { sendBtn.style.background = '#3730a3'; });
+  sendBtn.addEventListener('mouseleave', () => { sendBtn.style.background = '#312e81'; });
+  sendBtn.addEventListener('click', async () => {
+    const question = qa.value.trim();
+    if (!question) { qa.focus(); return; }
+    const ctx = ctxSel.value;
+    let fullQuestion = question;
+    if (ctx === 'architecture') fullQuestion = 'Laad docs/architecture.md als context.\n\n' + question;
+    else if (ctx === 'security') fullQuestion = 'Laad docs/security.md als context.\n\n' + question;
+    else if (ctx === 'testing') fullQuestion = 'Laad docs/testing-strategy.md als context.\n\n' + question;
+    else if (ctx === 'app-store') fullQuestion = 'Laad docs/app_store_readiness.md als context.\n\n' + question;
+    else if (ctx === 'current-phase') {
+      const activePhase = state && Object.entries(state.phases||{}).find(([,v]) => v.status === 'in_progress');
+      if (activePhase) fullQuestion = 'Context: ik zit in fase "' + activePhase[0].replace(/_/g,' ') + '".\n\n' + question;
+    }
+    sendBtn.textContent = '⏳ Openen…';
+    sendBtn.disabled = true;
+    await fetch(API + '/api/open-claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: fullQuestion }),
+    }).catch(() => {});
+    sendBtn.textContent = '✓ Terminal geopend';
+    setTimeout(() => { sendBtn.textContent = '⚡ Open in Claude Code'; sendBtn.disabled = false; }, 2500);
+  });
+  body.appendChild(sendBtn);
+  panel.appendChild(body);
+  document.body.appendChild(panel);
+}
+
+// ── Add CSS for forms + ask-claude ───────────────────────────────────────────
+(function addFormStyles() {
+  const s = document.createElement('style');
+  s.textContent = `.form-toggle-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--doc);font-size:12px;padding:5px 12px;cursor:pointer;transition:background .15s}.form-toggle-btn:hover{background:var(--surface2)}`;
+  document.head.appendChild(s);
+})();
+
+// ── Wire everything up ───────────────────────────────────────────────────────
+injectFormButtons();
+buildAskClaudePanel();
+
 init();
 </script>
 </body>

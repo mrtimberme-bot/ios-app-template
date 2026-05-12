@@ -24,18 +24,35 @@ Triggers om je geheugen aan te zetten:
 - Edge cases (eerste launch, geen data, error)?
 - Toekomst-ideeën die je nu al ziet?
 
-### 2. Categoriseer in vier buckets
+### 2. Categoriseer in vijf buckets
 
 Gebruik het template uit `/docs/features.md`:
 
-| Bucket | Definitie |
-|--------|-----------|
-| **MVP** | Zonder dit geen v0.9 — kernfunctionaliteit |
-| **v1.0** | Belangrijk, maar wacht tot eerste publieke release |
-| **Later** | Nice-to-have, no commitment |
-| **Nooit** | Impulsief idee dat scope sloopt |
+| Bucket | Definitie | Kano equivalent |
+|--------|-----------|----------------|
+| **Killer** | Differentieert — aanwezig bij 0-2 concurrenten, creëert "wow" | Delight |
+| **Must Have** | Verwacht door gebruikers — afwezigheid = immediate uninstall | Basic |
+| **Should Have** | Verbetert product significant, zichtbaar voor gebruikers | Performance |
+| **Could Have** | Nice-to-have, weinig impact op activatie/retentie | Low Performance |
+| **Won't Have** | Bewust weglaten — Indifferent of Reverse in de markt | Indifferent/Reverse |
 
-**MVP-cap: maximaal 7 features.** Méér dan 7 = je MVP is geen MVP. Snij.
+**MVP = Killer + Must Have features, maximaal 7 items.**  
+Features uit de feature matrix (`docs/research/feature-matrix.md`) hebben al een Kano-label — gebruik die als startpunt.
+
+### 2b. ICE scoring voor twijfelgevallen
+
+Als je twijfelt over de bucket van een feature, score op ICE:
+
+```
+ICE = Impact (1-10) × Confidence (1-10) × Ease (1-10)
+```
+
+- **Impact**: hoeveel verbetert dit activatie of D7-retentie?
+- **Confidence**: heb je bewijs? (review mining = 8-10, aanname = 3-5)
+- **Ease**: 10 = 1 dag, 5 = 1 week, 1 = 3+ weken
+
+ICE < 100 → Could Have of Won't Have.  
+ICE > 300 + Kano Basic/Delight → Must Have of Killer.
 
 ### 3. User stories per MVP-item
 
@@ -56,9 +73,20 @@ Concrete, testbare criteria:
 
 Schrijf expliciet op wat je NIET bouwt en waarom. Onderteken het stuk. Dit voorkomt dat je in Fase 6 stiekem features toevoegt.
 
-### 6. Prioriteitsmatrix voor twijfelgevallen
+### 6. Analytics tracking plan per MVP-feature
 
-Effort (1-5) × Impact (1-5). Items met effort 4-5 én impact 1-2 → "Nooit" of "Later".
+Vóór implementatie van elke MVP-feature, noteer:
+
+- **Activatie event**: welk gebruikersgedrag bewijst dat de feature waarde levert?
+- **Retentie signal**: welke actie correleert met D7/D30 retentie?
+- **Privacy**: welke data wordt verzameld? Consent vereist?
+
+Format (toevoegen aan user story):
+```
+Analytics: user_completed_[feature_name] → triggered when [concrete actie]
+```
+
+Features zonder gedefinieerd activatie event zijn niet klaar voor implementatie.
 
 ---
 

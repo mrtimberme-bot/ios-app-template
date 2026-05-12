@@ -25,12 +25,35 @@ Schrijf een **Vision-doc** (max 1 A4) in `/docs/vision.md` met:
 - Online/offline-vereisten
 - Minimum hardware (camera nodig? GPS? NFC?)
 
-### Concurrentie-scan
+### Concurrentie-onderzoek
 
-- 3 bestaande apps die hetzelfde of vergelijkbaars doen
-- Wat doen zij goed?
-- Wat doet jouw app anders?
-- Is er ruimte in de markt of ben je een rebuild?
+Voer `/competitor-research` uit (of doe handmatig via `docs/competitor-research.md`).
+
+Minimum voor discovery-exit-gate:
+- 50 apps breed gescaneerd (brede scan)
+- 8-10 directe concurrenten diep geanalyseerd (feature inventaris + review mining)
+- Feature matrix gebouwd met Kano-classificatie + ICE scoring
+- Positioneringsstatement vastgelegd in `docs/vision.md`
+
+Output: `docs/research/` map met feature-matrix.md, review-insights.md, perceptual-map.md.
+
+> Zie `docs/competitor-research.md` voor het volledige framework.
+
+### JTBD — Jobs To Be Done (optioneel maar sterk aanbevolen)
+
+Doe 5-8 interviews met potentiële gebruikers vóór Feature Collection.  
+De centrale vraag is **niet** "welke features wil je?" maar:
+
+> "Neem me mee naar de laatste keer dat je [probleem] tegenkwam. Wat deed je? Wat was frustrerend? Wat heb je geprobeerd?"
+
+Synthesiseer naar 2-3 **core jobs**:
+
+```
+Job: [gebruiker] wil [functionele taak] zodat [emotioneel/sociaal resultaat].
+```
+
+Voeg de core jobs toe aan `docs/vision.md` onder "Jobs To Be Done."  
+Features die geen van de core jobs dienen → direct naar "Nooit"-bucket in Feature Collection.
 
 ### Risico-inventarisatie
 
@@ -58,7 +81,9 @@ Deze keuze bepaalt hoe streng de latere fases zijn (Fase 7-9 zijn aanzienlijk li
 - [ ] Minimum iOS-versie + device-targets vastgelegd
 - [ ] Top-3 risico's benoemd met mitigatie
 - [ ] Distributie-keuze gemaakt en gedocumenteerd
-- [ ] Concurrentie-scan: minimaal 3 apps geanalyseerd
+- [ ] `/competitor-research` uitgevoerd: `docs/research/feature-matrix.md` bestaat
+- [ ] Positioneringsstatement in `docs/vision.md` bijgewerkt
+- [ ] Minimaal 5 JTBD-interviews gedaan (of bewust overgeslagen met reden)
 
 **Geen git-tag** — er is nog geen code.
 

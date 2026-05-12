@@ -121,19 +121,72 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /api/open-claude — open Terminal/iTerm2 and start claude
-  // The claude command hint is only used as display text, never passed to a shell
+  // POST /api/write-doc — write a markdown file within project bounds
+  if (pathname === '/api/write-doc' && req.method === 'POST') {
+    const body    = await parseBody(req);
+    const relPath = (body.path || '').trim();
+    if (!relPath || relPath.startsWith('/') || relPath.includes('..')) {
+      jsonResp(res, 400, { error: 'Invalid path' }); return;
+    }
+    const state = loadState();
+    const root  = state.projectPath || path.dirname(DOCS_DIR);
+    const full  = path.resolve(root, relPath);
+    if (!full.startsWith(root + path.sep)) {
+      jsonResp(res, 403, { error: 'Path outside project' }); return;
+    }
+    try {
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, body.content || '', 'utf8');
+      jsonResp(res, 200, { ok: true });
+    } catch (e) { jsonResp(res, 500, { error: e.message }); }
+    return;
+  }
+
+  // GET /api/read-doc?path=... — read a file within project bounds
+  if (pathname === '/api/read-doc' && req.method === 'GET') {
+    const url2    = new URL(req.url, `http://localhost:${PORT}`);
+    const relPath = (url2.searchParams.get('path') || '').trim();
+    if (!relPath || relPath.startsWith('/') || relPath.includes('..')) {
+      jsonResp(res, 400, { error: 'Invalid path' }); return;
+    }
+    const state = loadState();
+    const root  = state.projectPath || path.dirname(DOCS_DIR);
+    const full  = path.resolve(root, relPath);
+    if (!full.startsWith(root + path.sep)) {
+      jsonResp(res, 403, { error: 'Path outside project' }); return;
+    }
+    try {
+      const content = fs.readFileSync(full, 'utf8');
+      jsonResp(res, 200, { content, exists: true });
+    } catch { jsonResp(res, 200, { content: '', exists: false }); }
+    return;
+  }
+
+  // POST /api/open-claude — open Terminal/iTerm2 with claude
+  // hint: only slash-command chars allowed (display only)
+  // question: written to temp file, echoed before claude starts (content never in command string)
   if (pathname === '/api/open-claude' && req.method === 'POST') {
     const body  = await parseBody(req);
-    // Sanitise: only allow slash-commands (letters, digits, hyphen, slash, space)
-    const hint  = (body.command || '').replace(/[^a-zA-Z0-9\-\/ ]/g, '');
+    const hint  = (body.command  || '').replace(/[^a-zA-Z0-9\-\/ ]/g, '');
     const state = loadState();
     const dir   = state.projectPath || os.homedir();
 
-    // Write AppleScript to a temp file so no shell-injection path exists
-    const script = `set d to ${JSON.stringify(dir)}
-set h to ${JSON.stringify(hint)}
-set shellCmd to "cd " & quoted form of d & " && printf '\\033[33m\\n  ⚡ Typ nu: " & h & "\\n\\033[0m' && claude"
+    // If a question was supplied, write it to a temp file; the shell will cat it
+    let questionFile = '';
+    if (body.question && typeof body.question === 'string') {
+      const tmpQ = path.join(os.tmpdir(), `wf-q-${Date.now()}.txt`);
+      // Write raw question content to file (never interpolated into shell command)
+      fs.writeFileSync(tmpQ, body.question, 'utf8');
+      questionFile = tmpQ;
+    }
+
+    // Build the shell snippet — only safe values used in the string
+    // questionFile is a server-generated /tmp path with no user content
+    const innerCmd = questionFile
+      ? `cd ${JSON.stringify(dir)} && printf '\\033[36m\\n  ❓ Vraag aan Claude:\\n\\033[0m' && cat ${JSON.stringify(questionFile)} && echo && rm -f ${JSON.stringify(questionFile)} && claude`
+      : `cd ${JSON.stringify(dir)} && printf '\\033[33m\\n  ⚡ Typ nu: ${hint}\\n\\033[0m' && claude`;
+
+    const script = `set shellCmd to ${JSON.stringify(innerCmd)}
 if application "iTerm" is running or application "iTerm2" is running then
   tell application "iTerm"
     activate
