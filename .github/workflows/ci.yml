@@ -11,8 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-template:
+    name: Template check
+    runs-on: ubuntu-latest
+    outputs:
+      is-template: ${{ steps.detect.outputs.is-template }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect template repo
+        id: detect
+        run: |
+          if [ -d "{{APP_NAME}}" ]; then
+            echo "is-template=true" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Dit is de template repo — lint en build overgeslagen."
+          else
+            echo "is-template=false" >> "$GITHUB_OUTPUT"
+          fi
+
   lint:
     name: Lint
+    needs: check-template
+    if: needs.check-template.outputs.is-template == 'false'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +48,8 @@ jobs:
 
   build:
     name: Build
+    needs: check-template
+    if: needs.check-template.outputs.is-template == 'false'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
