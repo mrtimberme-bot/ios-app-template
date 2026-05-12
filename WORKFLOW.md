@@ -3,6 +3,30 @@
 > De volledige lifecycle van idee tot App Store, en verder.  
 > Elke fase heeft een Claude Code commando. 99% van het werk is geautomatiseerd.
 
+## Documentatie
+
+De volledige workflow-documentatie staat in `docs/`:
+
+| Document | Doel |
+|---------|------|
+| [`docs/make_app.md`](docs/make_app.md) | **Start hier** — index van alle fases en docs |
+| [`docs/architecture.md`](docs/architecture.md) | Universele architectuurregels (lees vóór fase 0) |
+| [`docs/phases/`](docs/phases/) | 11 fases (00-discovery t/m 10-pre-go-to-apple) |
+| [`docs/autoagent.md`](docs/autoagent.md) | Claude Code autonome permissions + rate limit handling |
+| [`docs/skills.md`](docs/skills.md) | Alle slash-commands en hoe ze werken |
+| [`docs/app_store_readiness.md`](docs/app_store_readiness.md) | Complete App Store compliance checklist |
+| [`docs/features.md`](docs/features.md) | Template voor feature-collectie (Fase 1) |
+| [`docs/dev-log.md`](docs/dev-log.md) | Dagelijks 3-regels log (gedaan/blokt/morgen) |
+
+**Diepte-referenties** (raadplegen per fase als onderwerp aan de orde komt):
+
+`networking-resilience.md` · `security.md` · `testing-strategy.md` · `data-migration.md` ·
+`observability.md` · `system-integration.md` · `localization.md` · `onboarding.md` ·
+`build-configurations.md` · `storekit-iap.md` · `push-notifications.md` ·
+`release-management.md` · `docc-documentation.md`
+
+---
+
 ---
 
 ## Overzicht

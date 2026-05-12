@@ -1,0 +1,115 @@
+# CLAUDE.md
+
+> **Per-project instructies voor Claude Code.** Plaats in de root van elk project (niet in `docs/`).
+> **Werkt samen met:** `~/.claude/settings.json` (globale config uit `autoagent.md`) en `docs/make_app.md` (workflow).
+
+---
+
+<!--
+TEMPLATE — Vul de gemarkeerde plekken in per project. Verwijder commentaar-blocks na invullen.
+-->
+
+## Project: [APP NAAM]
+
+[één-zin pitch — wat doet deze app]
+
+**Huidige fase:** [bv. Fase 5 — Vertical Slice]
+**Versie:** [bv. v0.4]
+**Distributie:** [App Store / Personal / TestFlight-only]
+
+---
+
+## Werkwijze
+
+Volg de workflow uit `docs/make_app.md`. Voor elke fase:
+
+1. Lees `docs/architecture.md` (eenmalig per sessie) als referentie voor universele regels.
+2. Lees `docs/phases/0X-*.md` voor de huidige fase.
+3. Lees `docs/dev-log.md` (laatste 3 entries) om te zien waar we waren.
+4. Werk de exit-gate-checklist af.
+5. Vraag bevestiging via Notification-hook vóór git tag + minor bump.
+6. Werk `CHANGELOG.md` en `dev-log.md` bij.
+
+Project-specifieke features staan in `docs/features.md`.
+Architectuur-afwijkingen documenteren in `docs/architecture-decisions.md`.
+
+---
+
+## Files NIET aanraken zonder expliciete vraag
+
+- `*.pbxproj` — gegenereerd door Tuist/XcodeGen, edits corrumperen project
+- `Info.plist` — capability-impact, vraag eerst (zie `architecture.md` §12)
+- `*.entitlements` — capability-impact
+- `PrivacyInfo.xcprivacy` — App Store-impact (zie `app_store_readiness.md` §1)
+- `.env`, `*.p8`, `*.p12` — secrets, sowieso geblokkeerd via `permissions.deny`
+- `Package.resolved` — alleen aanpassen via `swift package update`, nooit met de hand
+
+---
+
+## Standaard commando's
+
+```bash
+# Build (voor Mac, naar simulator)
+xcodebuild build -scheme [SCHEME] -destination 'platform=iOS Simulator,name=iPhone 16'
+
+# Tests
+xcodebuild test -scheme [SCHEME] -destination 'platform=iOS Simulator,name=iPhone 16'
+
+# Lint + format
+swiftlint
+swiftformat .
+
+# Project regenereren (indien Tuist)
+tuist generate
+
+# Project regenereren (indien XcodeGen)
+xcodegen generate
+```
+
+---
+
+## Architectuur — kort
+
+**Pragmatisch protocol-oriented met Core + modulaire features.**
+
+```
+App/                  # @main, AppEnvironment, root navigation
+Core/                 # protocols, models, use cases — geen UI
+Infrastructure/       # concrete implementaties van Core-protocols
+Features/             # modulair, één folder per feature
+DesignSystem/         # tokens + components
+Resources/            # assets, localizables
+Tests/
+```
+
+Volledige regels in `docs/architecture.md`.
+
+---
+
+## Dependencies
+
+- **SPM voorkeur**, geen CocoaPods tenzij geen keuze.
+- **Pin versies** met `.upToNextMinor` of exact, geen `branch:`.
+- **Geen nieuwe dependency** zonder vraag — supply-chain risico.
+
+---
+
+## Project-specifieke notes
+
+<!-- Vul aan met dingen die specifiek voor deze app gelden, bijvoorbeeld: -->
+
+- [bv. "Streaming responses moeten via SSE, niet WebSocket — beslissing in ADR-003"]
+- [bv. "Token-budget tracking is first-class concept — elke ChatProvider returned (response, tokensUsed)"]
+- [bv. "Manga sources volgen het `MangaSource` protocol; nieuwe source = nieuwe Infrastructure/Sources/-implementatie"]
+
+---
+
+## Wanneer mij iets vragen vóór je doet
+
+Buiten de standaard `permissions.ask` uit `~/.claude/settings.json` ook:
+
+- Nieuwe externe dependency toevoegen
+- Architectuur-beslissing die afwijkt van `architecture.md` (vereist een ADR)
+- Feature toevoegen die niet in `docs/features.md` staat
+- Schema-migratie van persistent storage
+- Wijziging aan publieke API van een Core-protocol (raakt alle implementaties)

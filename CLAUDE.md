@@ -70,11 +70,16 @@ iPhone 16 Pro, iOS 18.x
 `app-review-auditor`, `security-auditor`, `performance-analyst`, `release-manager`
 
 ## Workflow
-ios-blok-workflow: één feature = één blok = één branch = één PR
 
-Dagelijkse routine: `/sod` → `/plan-feature` → `/start-feature` → code → `/wrap-feature` → `/eod`
+**Fases:** Lees `docs/make_app.md` → doorloop `docs/phases/00` t/m `docs/phases/10`
+**Architectuur:** `docs/architecture.md` — lees dit vóór je begint
+**Dagelijks:** ios-blok-workflow: één feature = één blok = één branch = één PR
+
+Commando's: `/sod` → `/plan-feature` → `/start-feature` → code → `/wrap-feature` → `/eod`
 Release: `/audit` → `/ship` → `/post-launch`
 Updates: `/template-sync` (maandelijks)
+
+Diepte-referenties in `docs/` voor: networking, security, testing, localization, IAP, push, releases.
 
 ## Notificaties
 Gebruik `/notify` proactief. Max 10 woorden.
