@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/realm/SwiftLint
+    rev: 0.57.0
+    hooks:
+      - id: swiftlint
+        args: [--fix, --format]
+
+  - repo: local
+    hooks:
+      - id: no-direct-main-commit
+        name: Prevent direct main commit
+        entry: bash -c 'BRANCH=$(git branch --show-current); if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then echo "❌ Direct commit op main niet toegestaan. Gebruik een feature branch."; exit 1; fi'
+        language: system
+        pass_filenames: false
+
+      - id: pbxproj-warning
+        name: Warn on .pbxproj changes
+        entry: bash -c 'echo "⚠️  .pbxproj gewijzigd. Dit is normaal bij Xcode UI acties, maar nooit handmatig editen."'
+        language: system
+        files: \.pbxproj$
+        pass_filenames: false

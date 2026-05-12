@@ -1,0 +1,4 @@
+app_identifier "{{BUNDLE_ID}}"
+apple_id "tstekkinger@outlook.com"
+team_id "{{TEAM_ID}}"
+itc_team_id "{{TEAM_ID}}"

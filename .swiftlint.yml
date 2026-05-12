@@ -1,0 +1,30 @@
+excluded:
+  - docs/
+  - build/
+  - .claude/
+  - .worktrees/
+  - DerivedData/
+  - Packages/
+
+disabled_rules:
+  - trailing_comma
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - overridden_super_call
+  - redundant_nil_coalescing
+
+function_body_length:
+  warning: 60
+  error: 80
+
+file_length:
+  warning: 400
+  error: 600
+
+identifier_name:
+  min_length:
+    warning: 2
+  allowed_symbols: ["_"]
+  excludes_ranges: true

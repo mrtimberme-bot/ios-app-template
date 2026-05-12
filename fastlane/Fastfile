@@ -1,0 +1,80 @@
+default_platform(:ios)
+
+platform :ios do
+
+  desc "Build en upload naar TestFlight"
+  lane :beta do
+    ensure_git_status_clean
+    match(type: "appstore", readonly: is_ci)
+    increment_build_number(
+      build_number: latest_testflight_build_number + 1
+    )
+    build_app(
+      scheme: "{{APP_NAME}}",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "{{BUNDLE_ID}}" => "match AppStore {{BUNDLE_ID}}"
+        }
+      }
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: false,
+      changelog: "Bug fixes en verbeteringen"
+    )
+    notification(
+      title: "{{APP_NAME}} TestFlight",
+      message: "Build #{lane_context[SharedValues::BUILD_NUMBER]} geüpload!"
+    )
+  end
+
+  desc "Submit naar App Store"
+  lane :release do
+    ensure_git_status_clean
+    match(type: "appstore", readonly: true)
+    build_app(
+      scheme: "{{APP_NAME}}",
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    upload_to_app_store(
+      submit_for_review: false,
+      automatic_release: false,
+      force: true,
+      skip_screenshots: false,
+      skip_metadata: false
+    )
+    notification(
+      title: "{{APP_NAME}}",
+      message: "Ingediend bij App Store Review!"
+    )
+  end
+
+  desc "Screenshots genereren"
+  lane :screenshots do
+    capture_screenshots(
+      scheme: "{{APP_NAME}}UITests",
+      output_directory: "fastlane/screenshots"
+    )
+    frame_screenshots(silver: true)
+  end
+
+  desc "Vernieuwen certificaten (development)"
+  lane :certs_dev do
+    match(type: "development", force_for_new_devices: true)
+  end
+
+  desc "Vernieuwen certificaten (App Store)"
+  lane :certs_release do
+    match(type: "appstore")
+  end
+
+  error do |lane, exception|
+    notification(
+      title: "{{APP_NAME}} Fastlane fout",
+      message: "Lane #{lane}: #{exception.message}"
+    )
+  end
+
+end

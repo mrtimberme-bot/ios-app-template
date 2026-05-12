@@ -1,0 +1,45 @@
+# Xcode
+*.xcworkspace
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+fastlane/*.ipa
+fastlane/*.cer
+fastlane/*.p12
+
+# Secrets (NOOIT committen)
+.env
+*.p8
+*.p12
+*.mobileprovision
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Worktrees
+.worktrees/
+
+# Claude
+.claude/template-sync-date
