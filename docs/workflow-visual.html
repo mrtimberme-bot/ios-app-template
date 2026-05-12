@@ -774,7 +774,7 @@ function buildDots() {
     const d = document.createElement('div');
     d.className = 'pdot'; d.id = 'dot-' + id;
     d.title = id.replace(/_/g,' ');
-    d.onclick = () => { const el = document.querySelector('[data-phase="' + id + '"]'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); };
+    d.onclick = () => { const el = document.querySelector('.phase-group[data-phase="' + id + '"]'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); };
     wrap.appendChild(d);
   });
 }
@@ -808,7 +808,7 @@ function applyState() {
       if (hStartBtn) hStartBtn.style.display = (s === 'not_started') ? '' : 'none';
     }
     // Current phase border highlight (in original hidden DOM)
-    const grp = document.querySelector('[data-phase="' + id + '"]');
+    const grp = document.querySelector('.phase-group[data-phase="' + id + '"]');
     if (grp) grp.classList.toggle('current-phase', s === 'in_progress');
     // Restore manual steps done state
     if (ph.manualSteps) {
@@ -865,7 +865,7 @@ async function setStatus(id, status) {
 }
 
 function injectPanels() {
-  document.querySelectorAll('[data-phase]').forEach(grp => {
+  document.querySelectorAll('.phase-group[data-phase]').forEach(grp => {
     const id   = grp.dataset.phase;
     const cmds = PHASE_CMDS[id];
     if (!cmds) return;
@@ -1140,7 +1140,7 @@ function buildPipeline() {
 
   // Store body references after injectPanels has run
   Object.keys(PHASE_META).forEach(id => {
-    const grp = document.querySelector('[data-phase="' + id + '"]');
+    const grp = document.querySelector('.phase-group[data-phase="' + id + '"]');
     const body = grp && grp.querySelector('.phase-body');
     if (body) phaseBodies.set(id, body);
   });
@@ -1158,7 +1158,7 @@ function selectPhase(id) {
   if (selectedPhaseId && selectedPhaseId !== id) {
     const prev = phaseBodies.get(selectedPhaseId);
     if (prev) {
-      const prevGrp = document.querySelector('[data-phase="' + selectedPhaseId + '"]');
+      const prevGrp = document.querySelector('.phase-group[data-phase="' + selectedPhaseId + '"]');
       if (prevGrp) prevGrp.appendChild(prev);
     }
   }
@@ -1497,7 +1497,7 @@ const PHASE_FORMS = {
 // ── Inject form buttons into phases that have forms ──────────────────────────
 function injectFormButtons() {
   Object.entries(PHASE_FORMS).forEach(([id, def]) => {
-    const grp  = document.querySelector('[data-phase="' + id + '"]');
+    const grp  = document.querySelector('.phase-group[data-phase="' + id + '"]');
     const body = grp && grp.querySelector('.phase-body');
     if (!body) return;
 
