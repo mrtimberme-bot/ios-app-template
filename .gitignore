@@ -43,3 +43,4 @@ fastlane/*.p12
 
 # Claude
 .claude/template-sync-date
+workflow-state.json

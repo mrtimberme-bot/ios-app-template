@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iOS App Workflow</title>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#222535;--border:#2e3245;
+  --auto:#22c55e;--auto-bg:#052e16;--auto-border:#166534;
+  --manual:#f59e0b;--manual-bg:#1c1400;--manual-border:#92400e;
+  --cmd:#60a5fa;--cmd-bg:#0c1a2e;--skill:#a78bfa;--skill-bg:#150d2e;
+  --doc:#38bdf8;--doc-bg:#071e2e;--text:#e2e8f0;--muted:#64748b;
+  --ok:#22c55e;--warn:#f59e0b;--err:#ef4444;
+  --ns:#475569;--ip:#3b82f6;--cp:#22c55e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+#statusbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 40px;background:#0a0d14;border-bottom:1px solid var(--border);font-size:12px}
+#statusbar .sb-app{font-weight:700;color:#fff;font-size:13px}
+.sb-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:11px}
+.sb-chip.ok{color:var(--ok);border-color:#166534;background:var(--auto-bg)}
+.sb-chip.err{color:var(--err);border-color:#7f1d1d;background:#1a0000}
+#statusbar .spacer{flex:1}
+.sb-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;cursor:pointer}
+.sb-btn:hover{background:#2d3250}
+#sdot{width:7px;height:7px;border-radius:50%;background:var(--err);display:inline-block;margin-right:4px;transition:background .3s}
+#sdot.on{background:var(--ok)}
+#offline-banner{background:#1c1400;border-bottom:1px solid #92400e;padding:8px 40px;font-size:12px;color:var(--manual);display:none}
+#offline-banner.show{display:block}
+.header{background:linear-gradient(135deg,#1e1b4b 0%,#0f1117 60%);border-bottom:1px solid var(--border);padding:28px 40px 20px}
+.header h1{font-size:22px;font-weight:700;color:#fff}
+.header p{color:var(--muted);margin-top:4px;font-size:13px}
+.legend{display:flex;gap:20px;flex-wrap:wrap;padding:12px 40px;background:var(--surface);border-bottom:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-auto{background:var(--auto-bg);color:var(--auto);border:1px solid var(--auto-border)}
+.badge-manual{background:var(--manual-bg);color:var(--manual);border:1px solid var(--manual-border)}
+.badge-cmd{background:var(--cmd-bg);color:var(--cmd);border:1px solid #1e3a5f}
+.badge-skill{background:var(--skill-bg);color:var(--skill);border:1px solid #2d1b6b}
+.badge-doc{background:var(--doc-bg);color:var(--doc);border:1px solid #0c3a52}
+#pgwrap{padding:14px 40px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pg-label{font-size:12px;color:var(--muted);white-space:nowrap}
+#pgtrack{flex:1;min-width:120px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+#pgfill{height:100%;background:var(--ok);border-radius:3px;transition:width .4s}
+#pgpct{font-size:12px;color:var(--ok);font-weight:600;white-space:nowrap}
+.pdots{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pdot{width:10px;height:10px;border-radius:50%;background:var(--ns);cursor:pointer;border:1px solid transparent;transition:background .2s}
+.pdot.in_progress{background:var(--ip)} .pdot.completed{background:var(--cp)}
+.timeline{padding:28px 40px;max-width:1100px;margin:0 auto}
+.phase-group{margin-bottom:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.phase-header{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--surface);cursor:pointer;user-select:none;transition:background .15s}
+.phase-header:hover{background:var(--surface2)}
+.phase-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.phase-title{font-weight:600;font-size:15px;flex:1}
+.phase-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.phase-pct{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+.spill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;transition:opacity .15s;border:1px solid transparent}
+.spill:hover{opacity:.8}
+.spill.not_started{background:#1e293b;color:var(--ns);border-color:#334155}
+.spill.in_progress{background:#1e3a5f;color:#93c5fd;border-color:var(--ip)}
+.spill.completed{background:var(--auto-bg);color:var(--ok);border-color:var(--auto-border)}
+.chevron{color:var(--muted);transition:transform .2s;font-size:12px;flex-shrink:0}
+.phase-group.open .chevron{transform:rotate(90deg)}
+.phase-body{display:none;padding:20px;background:var(--bg);border-top:1px solid var(--border);gap:20px}
+.phase-group.open .phase-body{display:grid}
+.phase-body.c2{grid-template-columns:1fr 1fr} .phase-body.c3{grid-template-columns:1fr 1fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+.ct{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.ir{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.ir:last-child{border-bottom:none}
+.it{flex:1;font-size:13px} .it strong{color:#fff} .is{font-size:11px;color:var(--muted);margin-top:2px}
+.at{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--auto-bg);color:var(--auto);border:1px solid var(--auto-border);flex-shrink:0}
+.mt{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--manual-bg);color:var(--manual);border:1px solid var(--manual-border);flex-shrink:0}
+.eg{background:#0a1a0a;border:1px solid #1a4a1a;border-radius:8px;padding:10px 14px;font-size:12px;color:#86efac;display:flex;align-items:flex-start;gap:8px}
+.eg::before{content:"⛳";flex-shrink:0}
+.dp{display:inline-flex;align-items:center;gap:4px;background:var(--doc-bg);color:var(--doc);border:1px solid #0c3a52;border-radius:4px;padding:2px 7px;font-size:11px;margin:2px 3px 2px 0;font-family:'SF Mono','Fira Code',monospace}
+.ap{grid-column:1/-1;border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:10px}
+.ar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.al{font-size:11px;color:var(--muted);min-width:72px}
+.cbtn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;border:1px solid #1e3a5f;background:var(--cmd-bg);color:var(--cmd);font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap}
+.cbtn:hover{background:#0e2244;border-color:var(--ip)} .cbtn:active{transform:scale(.97)}
+.sbtn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;border:1px solid #1e3a52;background:#07121e;color:#67e8f9;font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap}
+.sbtn:hover{background:#0c1a2a}
+.stbtn{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;border:1px solid var(--border)}
+.stbtn.c{background:var(--auto-bg);color:var(--ok);border-color:var(--auto-border)} .stbtn.c:hover{background:#073d1c}
+.stbtn.s{background:#1e3a5f;color:#93c5fd;border-color:var(--ip)} .stbtn.s:hover{background:#1a3050}
+.stbtn.r{background:var(--surface2);color:var(--muted);border-color:var(--border)}
+.cout{background:#050a10;border:1px solid #1e3a5f;border-radius:6px;padding:10px 12px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:#67e8f9;white-space:pre-wrap;max-height:200px;overflow-y:auto;display:none}
+.cout.vis{display:block}
+.cout .oh{color:var(--muted);margin-bottom:6px;font-size:10px}
+.nwrap{display:flex;flex-direction:column;gap:4px}
+.nwrap label{font-size:11px;color:var(--muted)}
+.narea{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:8px;resize:vertical;min-height:50px;font-family:inherit;transition:border-color .15s;outline:none;width:100%}
+.narea:focus{border-color:var(--ip)}
+.nsaved{font-size:10px;color:var(--ok);opacity:0;transition:opacity .3s}
+.nsaved.show{opacity:1}
+.connector{display:flex;justify-content:center;padding:2px 0;color:var(--muted);font-size:18px}
+.c-init{background:#1e1b4b;color:#a5b4fc} .c-disc{background:#1c1400;color:#fcd34d}
+.c-arch{background:#0c1a2e;color:#7dd3fc} .c-core{background:#1a0a2e;color:#c4b5fd}
+.c-infra{background:#0a1a2a;color:#67e8f9} .c-feat{background:#0a1a0a;color:#86efac}
+.c-polish{background:#1a0a1a;color:#f0abfc} .c-stable{background:#1a1000;color:#fde68a}
+.c-ready{background:#1a0a00;color:#fdba74} .c-submit{background:#1a0000;color:#fca5a5}
+.c-post{background:#001a0a;color:#6ee7b7} .c-update{background:#0a0a1a;color:#c7d2fe}
+.pi{background:#312e81;color:#a5b4fc} .pd{background:#78350f;color:#fcd34d}
+.pa{background:#1e3a5f;color:#7dd3fc} .pc{background:#2d1b6b;color:#c4b5fd}
+.pn{background:#0c4a6e;color:#67e8f9} .pf{background:#14532d;color:#86efac}
+.pp{background:#4a1d6b;color:#f0abfc} .ps{background:#713f12;color:#fde68a}
+.pr{background:#7c2d12;color:#fdba74} .px{background:#7f1d1d;color:#fca5a5}
+.po{background:#065f46;color:#6ee7b7} .pu{background:#312e81;color:#c7d2fe}
+@media(max-width:720px){.timeline,.header,.legend,#statusbar,#pgwrap{padding-left:16px;padding-right:16px}.phase-body.c2,.phase-body.c3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="statusbar">
+  <span><span id="sdot"></span><span id="slabel" style="color:var(--muted);font-size:11px">Verbinden…</span></span>
+  <span class="sb-app" id="sbapp">iOS App Workflow</span>
+  <span class="sb-chip" id="sbbranch">⎇ branch</span>
+  <span class="sb-chip" id="sbci">CI ?</span>
+  <span class="spacer"></span>
+  <button class="sb-btn" onclick="refreshStatus()">↺ Vernieuwen</button>
+</div>
+
+<div id="offline-banner">
+  ⚠️ Server niet actief — start met: <code>bash docs/start-workflow.sh</code>
+</div>
+
+<div class="header">
+  <h1>iOS App Workflow — Dashboard</h1>
+  <p>Van idee naar App Store. Klik op een fase voor details, acties en voortgang.</p>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="badge badge-auto">● Automatisch</span></div>
+  <div class="legend-item"><span class="badge badge-manual">● Handmatig</span></div>
+  <div class="legend-item"><span class="badge badge-cmd">/ commando</span></div>
+  <div class="legend-item"><span class="badge badge-skill">◆ skill</span></div>
+  <div class="legend-item"><span class="badge badge-doc">📄 doc</span></div>
+</div>
+
+<div id="pgwrap">
+  <span class="pg-label">Voortgang</span>
+  <div id="pgtrack"><div id="pgfill" style="width:0%"></div></div>
+  <span id="pgpct">0%</span>
+  <div class="pdots" id="pdots"></div>
+</div>
+
+<div class="timeline">
+
+<div class="phase-group open" data-phase="initiation">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-init">1</div>
+    <div class="phase-title">Initiation — Nieuwe app starten</div>
+    <div class="phase-meta">
+      <span class="phase-pct pi">90% auto</span>
+      <span class="badge badge-cmd">/ new-app</span>
+      <span class="badge badge-cmd">/ setup-certs</span>
+    </div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Commando's</div>
+      <div class="ir"><div class="it"><strong>/new-app</strong><div class="is">App-naam, bundle ID, team ID, monetization</div></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/setup-certs</strong><div class="is">Fastlane Match certificaten</div></div><span class="badge badge-cmd">cmd</span></div>
+    </div>
+    <div class="card"><div class="ct">Automatisch</div>
+      <div class="ir"><div class="it"><strong>GitHub repo aanmaken</strong><div class="is">Vanuit ios-app-template</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Clone → ~/Development/&lt;App&gt;</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Placeholders vervangen</strong><div class="is">scripts/setup.sh</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>CLAUDE.md configureren</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Eerste CI-run starten</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Handmatig</div>
+      <div class="ir"><div class="it"><strong>Bundle ID registreren</strong><div class="is">developer.apple.com — MFA vereist</div></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>xcodegen generate</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Signing instellen in Xcode</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>GitHub Actions secrets</strong><div class="is">ASC_KEY_ID, MATCH_PASSWORD…</div></div><span class="mt">handmatig</span></div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="discovery">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-disc">0</div>
+    <div class="phase-title">Discovery & Scoping</div>
+    <div class="phase-meta"><span class="phase-pct pd">70% auto</span><span class="badge badge-doc">📄 00-discovery.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/00-discovery.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 architecture.md</span><div class="is">Lees eenmalig vóór je begint</div></div></div>
+      <div class="ir"><div class="it"><strong>Schrijf: docs/vision.md</strong><div class="is">Probleem · doelgroep · kernbelofte · succescriteria</div></div><span class="mt">handmatig</span></div>
+    </div>
+    <div class="card"><div class="ct">Activiteiten</div>
+      <div class="ir"><div class="it"><strong>Vision-doc schrijven (max 1 A4)</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Out-of-scope v1.0 vastleggen</strong></div><span class="mt">handmatig</span></div>
+      <div class="eg" style="margin-top:10px">Vision-doc goedgekeurd, scope bevroren.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="feature_collection">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-disc">1</div>
+    <div class="phase-title">Feature-collectie & MVP-afbakening</div>
+    <div class="phase-meta"><span class="phase-pct pd">75% auto</span><span class="badge badge-doc">📄 01-feature-collection.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/01-feature-collection.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 features.md</span><div class="is">Template voor feature-dump</div></div></div>
+    </div>
+    <div class="card"><div class="ct">Labels</div>
+      <div class="ir"><div class="it"><strong>MVP-must</strong> — blokkerend voor v1.0</div></div>
+      <div class="ir"><div class="it"><strong>MVP-nice</strong> — niet blokkerend</div></div>
+      <div class="ir"><div class="it"><strong>Post-MVP</strong> — backlog</div></div>
+      <div class="ir"><div class="it"><strong>Nooit</strong> — scope-creep</div></div>
+      <div class="eg" style="margin-top:8px">features.md bevat alleen MVP-must, rest gelabeld.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="architecture">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-arch">2</div>
+    <div class="phase-title">Architectuur & Projectopzet</div>
+    <div class="phase-meta"><span class="phase-pct pa">85% auto</span><span class="badge badge-cmd">/ plan-feature</span><span class="badge badge-skill">◆ ios-architect</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Commando's &amp; Skills</div>
+      <div class="ir"><div class="it"><strong>/plan-feature</strong><div class="is">Voor eerste architectuursessie</div></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>ios-architect</strong></div><span class="badge badge-skill">skill</span></div>
+      <div class="ir"><div class="it"><strong>theme-designer</strong></div><span class="badge badge-skill">skill</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/02-architecture-setup.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 architecture.md</span><div class="is">Eenmalig lezen (verplicht)</div></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 build-configurations.md</span></div></div>
+    </div>
+    <div class="card"><div class="ct">Beslissingen vastleggen</div>
+      <div class="ir"><div class="it"><strong>State:</strong> @Observable of TCA?</div></div>
+      <div class="ir"><div class="it"><strong>Persistence:</strong> SwiftData?</div></div>
+      <div class="ir"><div class="it"><strong>Auth-strategie</strong></div></div>
+      <div class="ir"><div class="it"><strong>Monetization</strong></div></div>
+      <div class="eg" style="margin-top:8px">Structuur compileert, decisions.md ingevuld.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="core_domain">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-core">3</div>
+    <div class="phase-title">Core-domein modelleren</div>
+    <div class="phase-meta"><span class="phase-pct pc">90% auto</span><span class="badge badge-doc">📄 03-core-domain.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Kritieke regel</div>
+      <div style="background:#1a0a00;border:1px solid #7c2d12;border-radius:6px;padding:10px;font-size:12px;color:#fdba74;margin-bottom:8px">⚠️ Geen netwerk/persistence-code. Alleen protocols + in-memory fakes.</div>
+      <div class="ir"><div class="it"><strong>Core/Models/</strong><div class="is">struct, enum — framework-agnostisch</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Core/Protocols/</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Core/UseCases/</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/03-core-domain.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 testing-strategy.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 docc-documentation.md</span></div></div>
+    </div>
+    <div class="card"><div class="ct">CI (automatisch bij elke push)</div>
+      <div class="ir"><div class="it"><strong>SwiftLint strict</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Gitleaks</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Build check</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Tests (main only)</strong></div><span class="at">auto</span></div>
+      <div class="eg" style="margin-top:8px">Alle use cases hebben unit tests.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="infrastructure">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-infra">4</div>
+    <div class="phase-title">Infrastructuur &amp; Integraties</div>
+    <div class="phase-meta"><span class="phase-pct pn">88% auto</span><span class="badge badge-skill">◆ security-auditor</span><span class="badge badge-doc">📄 04-infrastructure.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Wat je bouwt</div>
+      <div class="ir"><div class="it"><strong>URLSession-wrapper</strong><div class="is">Retry, backoff, timeout</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>KeychainService</strong><div class="is">Al aanwezig in template</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>SwiftData stores</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Analytics/crash setup</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Diepte-documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 networking-resilience.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 security.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 observability.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 data-migration.md</span></div></div>
+    </div>
+    <div class="card"><div class="ct">Skills</div>
+      <div class="ir"><div class="it"><strong>security-auditor</strong></div><span class="badge badge-skill">skill</span></div>
+      <div class="ir"><div class="it"><strong>privacy-manifest</strong><div class="is">Bij elke nieuwe dependency</div></div><span class="badge badge-skill">skill</span></div>
+      <div class="eg" style="margin-top:8px">Integratietests slagen met test-backend.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="vertical_slice">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-feat">5</div>
+    <div class="phase-title">Eerste verticale slice</div>
+    <div class="phase-meta"><span class="phase-pct pf">92% auto</span><span class="badge badge-cmd">/ sod</span><span class="badge badge-cmd">/ plan-feature</span><span class="badge badge-cmd">/ wrap-feature</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Dagelijkse loop</div>
+      <div class="ir"><div class="it"><strong>/sod</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/plan-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/start-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>Implementeren</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>/wrap-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/eod</strong></div><span class="badge badge-cmd">cmd</span></div>
+    </div>
+    <div class="card"><div class="ct">Patroon (herhaal per feature)</div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;line-height:1.9;color:#94a3b8">Core protocol → Infrastructure<br>→ Use Case → @Observable Store<br>→ SwiftUI View</div>
+      <div class="ir" style="margin-top:8px"><div class="it"><span class="dp">📄 phases/05-vertical-slice.md</span></div></div>
+      <div class="eg" style="margin-top:8px">Één feature werkend op simulator, UI-test dekt happy path.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="features">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-feat">6</div>
+    <div class="phase-title">Resterende MVP-features</div>
+    <div class="phase-meta"><span class="phase-pct pf">95% auto</span><span class="badge badge-cmd">/ sod</span><span class="badge badge-cmd">/ plan-feature</span><span class="badge badge-cmd">/ wrap-feature</span><span class="badge badge-cmd">/ eod</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Dagelijkse loop</div>
+      <div class="ir"><div class="it"><strong>/sod</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/plan-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/start-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/wrap-feature</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/eod</strong></div><span class="badge badge-cmd">cmd</span></div>
+    </div>
+    <div class="card"><div class="ct">Hulpcommando's</div>
+      <div class="ir"><div class="it"><strong>/quick-audit</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/fix-ci</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/design-review</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/accessibility-check</strong></div><span class="badge badge-cmd">cmd</span></div>
+    </div>
+    <div class="card"><div class="ct">Diepte-docs</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/06-features.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 system-integration.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 push-notifications.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 storekit-iap.md</span></div></div>
+      <div class="eg" style="margin-top:8px">Alle MVP-must features geïmplementeerd.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="polish">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-polish">7</div>
+    <div class="phase-title">UX-polish &amp; Accessibility</div>
+    <div class="phase-meta"><span class="phase-pct pp">85% auto</span><span class="badge badge-skill">◆ hig-compliance</span><span class="badge badge-skill">◆ accessibility-auditor</span><span class="badge badge-cmd">/ design-review</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Skills</div>
+      <div class="ir"><div class="it"><strong>hig-compliance</strong></div><span class="badge badge-skill">skill</span></div>
+      <div class="ir"><div class="it"><strong>accessibility-auditor</strong></div><span class="badge badge-skill">skill</span></div>
+      <div class="ir"><div class="it"><strong>motion-designer</strong></div><span class="badge badge-skill">skill</span></div>
+      <div class="ir"><div class="it"><strong>haptics-designer</strong></div><span class="badge badge-skill">skill</span></div>
+    </div>
+    <div class="card"><div class="ct">Activiteiten</div>
+      <div class="ir"><div class="it"><strong>HIG-review</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>VoiceOver testen</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Dynamic Type XS → XXXL</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Dark mode verificatie</strong></div><span class="mt">handmatig</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/07-polish-accessibility.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 onboarding.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 localization.md</span></div></div>
+      <div class="eg" style="margin-top:8px">VoiceOver navigeert hele app, tekst schaalt correct.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="stabilisation">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-stable">8</div>
+    <div class="phase-title">Stabilisatie &amp; Testing</div>
+    <div class="phase-meta"><span class="phase-pct ps">80% auto</span><span class="badge badge-skill">◆ ios-testing</span><span class="badge badge-doc">📄 08-stabilisation.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Activiteiten</div>
+      <div class="ir"><div class="it"><strong>Internal TestFlight build</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Crash reporting aanzetten</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Bug report → fix loop</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Core-laag coverage ≥ 80%</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten &amp; drempel</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/08-stabilisation.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 testing-strategy.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 observability.md §5</span></div></div>
+      <div style="background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px;font-size:12px;color:#86efac;margin-top:8px">🎯 Doelcrash rate: &lt; 0.5% vóór Fase 9</div>
+      <div class="eg" style="margin-top:8px">Crash rate &lt; 0.5%, geen kritieke bugs open.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="app_store_readiness">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-ready">9</div>
+    <div class="phase-title">App Store-readiness</div>
+    <div class="phase-meta"><span class="phase-pct pr">98% auto</span><span class="badge badge-cmd">/ audit</span><span class="badge badge-skill">◆ app-store-readiness</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">/audit controleert automatisch</div>
+      <div class="ir"><div class="it"><strong>App Store Review Guidelines</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Privacy manifest</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Accessibility</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>HIG-compliance</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Security</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>SwiftLint clean</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Handmatig</div>
+      <div class="ir"><div class="it"><strong>Screenshots</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>App Store metadata</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Privacy policy URL</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>What's New tekst</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Demo-account aanmaken</strong></div><span class="mt">handmatig</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/09-app-store-readiness.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 app_store_readiness.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 release-management.md</span></div></div>
+      <div class="eg" style="margin-top:8px">/audit 0 CRITICAL, alle assets aangeleverd.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="pre_go_to_apple">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-submit">10</div>
+    <div class="phase-title">Pre go-to-apple verificatie</div>
+    <div class="phase-meta"><span class="phase-pct px">60% auto</span><span class="badge badge-doc">📄 10-pre-go-to-apple.md</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Verifiëren (niet bouwen)</div>
+      <div class="ir"><div class="it"><strong>External TestFlight review-cycle</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Rejection-gronden doorlopen</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Demo-account op build-nummer</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>Privacy manifest via Instruments</strong></div><span class="mt">handmatig</span></div>
+    </div>
+    <div class="card"><div class="ct">Documenten</div>
+      <div class="ir"><div class="it"><span class="dp">📄 phases/10-pre-go-to-apple.md</span></div></div>
+      <div class="ir"><div class="it"><span class="dp">📄 release-management.md</span></div></div>
+      <div class="eg" style="margin-top:10px">External TestFlight reviewers akkoord.</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="publication">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-submit">🚀</div>
+    <div class="phase-title">Publicatie — App Store submission</div>
+    <div class="phase-meta"><span class="phase-pct px">85% auto</span><span class="badge badge-cmd">/ ship</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Automatisch (/ship)</div>
+      <div class="ir"><div class="it"><strong>/audit</strong><div class="is">Blokkeert bij failures</div></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Version bump</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>CHANGELOG updaten</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>fastlane gym + pilot</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">⏸ Pauze — jij test</div>
+      <div style="background:#1c1400;border:1px solid #92400e;border-radius:6px;padding:10px;font-size:12px;color:#fcd34d;margin-bottom:8px">⚠️ /ship wacht op jouw goedkeuring na TestFlight-upload</div>
+      <div class="ir"><div class="it"><strong>TestFlight build testen</strong></div><span class="mt">handmatig</span></div>
+    </div>
+    <div class="card"><div class="ct">Na goedkeuring</div>
+      <div class="ir"><div class="it"><strong>fastlane deliver</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>git tag + GitHub Release</strong></div><span class="at">auto</span></div>
+      <div style="background:#052e16;border:1px solid #166534;border-radius:6px;padding:8px;font-size:12px;color:#86efac;margin-top:8px">⏳ Apple Review: 1-3 werkdagen</div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="post_launch">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-post">📊</div>
+    <div class="phase-title">Post-launch monitoring</div>
+    <div class="phase-meta"><span class="phase-pct po">70% auto</span><span class="badge badge-cmd">/ post-launch dag1</span><span class="badge badge-cmd">/ post-launch dag7</span><span class="badge badge-cmd">/ post-launch dag30</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c3">
+    <div class="card"><div class="ct">Dag 1 — Crash drempels</div>
+      <div style="background:#1a0000;border-radius:6px;padding:10px;font-size:11px;line-height:2">
+        <span style="color:#fca5a5">&gt; 5%</span> — Hotfix vandaag<br>
+        <span style="color:#fdba74">2–5%</span> — Hotfix 24u<br>
+        <span style="color:#fde68a">1–2%</span> — Monitor<br>
+        <span style="color:#86efac">&lt; 1%</span> — ✅ Goed
+      </div>
+    </div>
+    <div class="card"><div class="ct">Dag 7</div>
+      <div class="ir"><div class="it"><strong>Reviews lezen</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>3+ gelijkaardige → actie</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>GitHub issues aanmaken</strong></div><span class="at">auto</span></div>
+    </div>
+    <div class="card"><div class="ct">Dag 30</div>
+      <div class="ir"><div class="it"><strong>App Analytics</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><strong>patch / minor / niks beslissen</strong></div><span class="mt">handmatig</span></div>
+      <div class="ir"><div class="it"><span class="dp">📄 release-management.md §4</span></div></div>
+    </div>
+  </div>
+</div>
+<div class="connector">↓</div>
+
+<div class="phase-group" data-phase="update_cycle">
+  <div class="phase-header" onclick="toggle(this)">
+    <div class="phase-num c-update">↻</div>
+    <div class="phase-title">Update-cyclus (doorlopend)</div>
+    <div class="phase-meta"><span class="phase-pct pu">95% auto</span><span class="badge badge-cmd">/ ship patch</span><span class="badge badge-cmd">/ ship minor</span><span class="badge badge-cmd">/ template-sync</span></div>
+    <span class="chevron">▶</span>
+  </div>
+  <div class="phase-body c2">
+    <div class="card"><div class="ct">Loop (+ extra context in /sod)</div>
+      <div class="ir"><div class="it"><strong>/sod</strong><div class="is">+ App Store status, TestFlight feedback</div></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/ship patch</strong><div class="is">Bugfix — audit optioneel</div></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>/ship minor</strong><div class="is">Feature-update — audit verplicht</div></div><span class="badge badge-cmd">cmd</span></div>
+    </div>
+    <div class="card"><div class="ct">Template-evolutie (maandelijks)</div>
+      <div class="ir"><div class="it"><strong>/template-sync</strong></div><span class="badge badge-cmd">cmd</span></div>
+      <div class="ir"><div class="it"><strong>Diff per categorie tonen</strong></div><span class="at">auto</span></div>
+      <div class="ir"><div class="it"><strong>Selectief toepassen</strong></div><span class="mt">handmatig</span></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+  <h2 style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">📚 Welk document gebruik je wanneer?</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+    <div><span class="dp">📄 architecture.md</span><span style="color:var(--muted);font-size:12px"> — Vóór je begint (eenmalig)</span></div>
+    <div><span class="dp">📄 networking-resilience.md</span><span style="color:var(--muted);font-size:12px"> — Netwerk instabiel?</span></div>
+    <div><span class="dp">📄 data-migration.md</span><span style="color:var(--muted);font-size:12px"> — Schema-wijziging?</span></div>
+    <div><span class="dp">📄 security.md</span><span style="color:var(--muted);font-size:12px"> — Keychain, biometrics, ATS</span></div>
+    <div><span class="dp">📄 observability.md</span><span style="color:var(--muted);font-size:12px"> — Analytics, crash-piek?</span></div>
+    <div><span class="dp">📄 testing-strategy.md</span><span style="color:var(--muted);font-size:12px"> — Test-pyramid, snapshot</span></div>
+    <div><span class="dp">📄 storekit-iap.md</span><span style="color:var(--muted);font-size:12px"> — IAP / subscriptions</span></div>
+    <div><span class="dp">📄 push-notifications.md</span><span style="color:var(--muted);font-size:12px"> — APNs, BGTasks</span></div>
+    <div><span class="dp">📄 onboarding.md</span><span style="color:var(--muted);font-size:12px"> — Permission priming §3</span></div>
+    <div><span class="dp">📄 localization.md</span><span style="color:var(--muted);font-size:12px"> — Pluralization, RTL</span></div>
+    <div><span class="dp">📄 system-integration.md</span><span style="color:var(--muted);font-size:12px"> — Universal Links, App Intents</span></div>
+    <div><span class="dp">📄 build-configurations.md</span><span style="color:var(--muted);font-size:12px"> — dev/staging/prod</span></div>
+    <div><span class="dp">📄 release-management.md §4</span><span style="color:var(--muted);font-size:12px"> — Hotfix flow</span></div>
+    <div><span class="dp">📄 app_store_readiness.md</span><span style="color:var(--muted);font-size:12px"> — Submission checklist</span></div>
+    <div><span class="dp">📄 docc-documentation.md</span><span style="color:var(--muted);font-size:12px"> — DocC voor Core APIs</span></div>
+    <div><span class="dp">📄 autoagent.md</span><span style="color:var(--muted);font-size:12px"> — Rate limits, auto permissions</span></div>
+  </div>
+</div>
+</div>
+
+<script>
+'use strict';
+const API = 'http://localhost:7842';
+let state = null, online = false;
+const timers = {};
+
+const PHASE_CMDS = {
+  initiation:          { claude:['/new-app','/setup-certs'],                                       shell:[] },
+  discovery:           { claude:[],                                                                shell:['git-status'] },
+  feature_collection:  { claude:[],                                                                shell:[] },
+  architecture:        { claude:['/plan-feature'],                                                 shell:['git-status'] },
+  core_domain:         { claude:['/plan-feature','/start-feature','/wrap-feature'],                shell:['ci-list','git-log'] },
+  infrastructure:      { claude:['/plan-feature','/start-feature','/wrap-feature'],                shell:['ci-list'] },
+  vertical_slice:      { claude:['/sod','/plan-feature','/start-feature','/wrap-feature','/eod'], shell:['git-status','ci-list'] },
+  features:            { claude:['/sod','/plan-feature','/start-feature','/wrap-feature','/quick-audit','/fix-ci','/eod'], shell:['git-status','ci-list','pr-list'] },
+  polish:              { claude:['/design-review','/accessibility-check','/wrap-feature'],         shell:['git-status'] },
+  stabilisation:       { claude:['/sod','/wrap-feature','/eod'],                                  shell:['ci-list','git-log'] },
+  app_store_readiness: { claude:['/audit','/quick-audit'],                                         shell:['ci-list','git-status'] },
+  pre_go_to_apple:     { claude:['/audit'],                                                        shell:['git-log'] },
+  publication:         { claude:['/ship'],                                                          shell:['git-log','ci-list'] },
+  post_launch:         { claude:['/post-launch dag1','/post-launch dag7','/post-launch dag30'],    shell:['ci-list'] },
+  update_cycle:        { claude:['/sod','/ship patch','/ship minor','/template-sync','/eod'],      shell:['git-status','ci-list','pr-list'] },
+};
+
+const SHELL_LABELS = { 'git-status':'Git Status', 'git-log':'Git Log', 'ci-list':'CI Status', 'pr-list':'Open PRs', 'daily-log':'Daily Log' };
+const STATUS_CYCLE = ['not_started','in_progress','completed'];
+const STATUS_TXT   = { not_started:'○ Niet gestart', in_progress:'⟳ Bezig', completed:'✓ Klaar' };
+
+async function init() {
+  buildDots();
+  try {
+    const r = await fetch(API + '/api/state', { signal: AbortSignal.timeout(2000) });
+    if (!r.ok) throw new Error();
+    state = await r.json();
+    online = true;
+    setServerUI(true);
+    applyState();
+    injectPanels();
+    refreshStatus();
+  } catch {
+    online = false;
+    setServerUI(false);
+    document.getElementById('offline-banner').classList.add('show');
+    // Still inject panels so toggle/UI works
+    injectPanels();
+  }
+}
+
+function setServerUI(on) {
+  document.getElementById('sdot').className    = on ? 'on' : '';
+  document.getElementById('slabel').textContent = on ? 'Server actief' : 'Server offline';
+  if (state) document.getElementById('sbapp').textContent = state.appName || 'iOS App Workflow';
+}
+
+function buildDots() {
+  const wrap = document.getElementById('pdots');
+  Object.keys(PHASE_CMDS).forEach(id => {
+    const d = document.createElement('div');
+    d.className = 'pdot'; d.id = 'dot-' + id;
+    d.title = id.replace(/_/g,' ');
+    d.onclick = () => { const el = document.querySelector('[data-phase="' + id + '"]'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); };
+    wrap.appendChild(d);
+  });
+}
+
+function applyState() {
+  if (!state) return;
+  let done = 0, total = Object.keys(state.phases).length;
+  Object.entries(state.phases).forEach(([id, ph]) => {
+    const s = ph.status || 'not_started';
+    updatePill(id, s);
+    const dot = document.getElementById('dot-' + id);
+    if (dot) dot.className = 'pdot ' + s;
+    if (s === 'completed') done++;
+    const na = document.getElementById('notes-' + id);
+    if (na && ph.notes) na.value = ph.notes;
+  });
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById('pgfill').style.width = pct + '%';
+  document.getElementById('pgpct').textContent = pct + '%';
+}
+
+function updatePill(id, status) {
+  const p = document.getElementById('pill-' + id);
+  if (!p) return;
+  p.className = 'spill ' + status;
+  p.textContent = STATUS_TXT[status] || status;
+}
+
+async function cycleStatus(id, e) {
+  e.stopPropagation();
+  if (!state) return;
+  const cur  = state.phases[id]?.status || 'not_started';
+  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
+  await setStatus(id, next);
+}
+
+async function setStatus(id, status) {
+  if (!state) return;
+  state.phases[id] = Object.assign({}, state.phases[id] || {}, { status });
+  updatePill(id, status);
+  applyState();
+  if (!online) return;
+  await fetch(API + '/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phases: { [id]: { status } } }),
+  }).catch(() => {});
+}
+
+function injectPanels() {
+  document.querySelectorAll('[data-phase]').forEach(grp => {
+    const id   = grp.dataset.phase;
+    const cmds = PHASE_CMDS[id];
+    if (!cmds) return;
+
+    // Status pill in header meta
+    const meta = grp.querySelector('.phase-meta');
+    if (meta && !grp.querySelector('.spill')) {
+      const pill = document.createElement('span');
+      pill.id = 'pill-' + id;
+      pill.className = 'spill not_started';
+      pill.textContent = STATUS_TXT.not_started;
+      pill.title = 'Klik om status te wisselen';
+      pill.addEventListener('click', e => cycleStatus(id, e));
+      meta.insertBefore(pill, meta.firstChild);
+    }
+
+    const body = grp.querySelector('.phase-body');
+    if (!body) return;
+
+    const panel = document.createElement('div');
+    panel.className = 'ap';
+
+    // Claude buttons row
+    if (cmds.claude.length) {
+      const row  = document.createElement('div');
+      row.className = 'ar';
+      const lbl = document.createElement('span');
+      lbl.className = 'al';
+      lbl.textContent = '▶ Claude:';
+      row.appendChild(lbl);
+      cmds.claude.forEach(cmd => {
+        const btn = document.createElement('button');
+        btn.className = 'cbtn';
+        btn.textContent = cmd;
+        btn.addEventListener('click', () => openClaude(cmd));
+        row.appendChild(btn);
+      });
+      panel.appendChild(row);
+    }
+
+    // Shell buttons row + output
+    if (cmds.shell.length) {
+      const outId = 'out-' + id;
+      const row   = document.createElement('div');
+      row.className = 'ar';
+      const lbl = document.createElement('span');
+      lbl.className = 'al';
+      lbl.textContent = '$ Shell:';
+      row.appendChild(lbl);
+      cmds.shell.forEach(cmdId => {
+        const btn = document.createElement('button');
+        btn.className = 'sbtn';
+        btn.textContent = SHELL_LABELS[cmdId] || cmdId;
+        btn.addEventListener('click', () => runShell(cmdId, outId));
+        row.appendChild(btn);
+      });
+      panel.appendChild(row);
+
+      const out = document.createElement('div');
+      out.className = 'cout';
+      out.id = outId;
+      panel.appendChild(out);
+    }
+
+    // Status buttons
+    const srow = document.createElement('div');
+    srow.className = 'ar';
+    srow.style.marginTop = '4px';
+    const slbl = document.createElement('span');
+    slbl.className = 'al';
+    slbl.textContent = 'Status:';
+    srow.appendChild(slbl);
+    [['in_progress','⟳ Bezig','s'],['completed','✓ Klaar','c'],['not_started','↺ Reset','r']].forEach(([s, lbl, cls]) => {
+      const btn = document.createElement('button');
+      btn.className = 'stbtn ' + cls;
+      btn.textContent = lbl;
+      btn.addEventListener('click', () => setStatus(id, s));
+      srow.appendChild(btn);
+    });
+    panel.appendChild(srow);
+
+    // Notes
+    const nwrap = document.createElement('div');
+    nwrap.className = 'nwrap';
+    const nlbl = document.createElement('label');
+    nlbl.textContent = 'Notities';
+    const narea = document.createElement('textarea');
+    narea.className = 'narea';
+    narea.id = 'notes-' + id;
+    narea.placeholder = 'Voortgang, blockers, beslissingen…';
+    narea.rows = 2;
+    const nsaved = document.createElement('span');
+    nsaved.className = 'nsaved';
+    nsaved.id = 'saved-' + id;
+    nsaved.textContent = '✓ Opgeslagen';
+    nwrap.appendChild(nlbl);
+    nwrap.appendChild(narea);
+    nwrap.appendChild(nsaved);
+    panel.appendChild(nwrap);
+    narea.addEventListener('input', () => {
+      clearTimeout(timers[id]);
+      timers[id] = setTimeout(() => saveNotes(id, narea.value), 800);
+    });
+
+    body.appendChild(panel);
+  });
+  if (state) applyState();
+}
+
+async function openClaude(command) {
+  if (!online) {
+    window.alert('Server niet actief.\n\nStart met: bash docs/start-workflow.sh\n\nDan typ in Claude Code:\n' + command);
+    return;
+  }
+  await fetch(API + '/api/open-claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command }),
+  }).catch(() => {});
+}
+
+async function runShell(cmdId, outId) {
+  if (!online) { window.alert('Server niet actief.'); return; }
+  const out = document.getElementById(outId);
+  if (!out) return;
+  out.classList.add('vis');
+  // Clear and show loading text (textContent, not innerHTML)
+  while (out.firstChild) out.removeChild(out.firstChild);
+  const hdr = document.createElement('div');
+  hdr.className = 'oh';
+  hdr.textContent = '$ ' + (SHELL_LABELS[cmdId] || cmdId) + ' — laden…';
+  out.appendChild(hdr);
+  try {
+    const r = await fetch(API + '/api/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd: cmdId }),
+    });
+    const d = await r.json();
+    while (out.firstChild) out.removeChild(out.firstChild);
+    const h2 = document.createElement('div');
+    h2.className = 'oh';
+    h2.textContent = '$ ' + d.cmd;
+    const content = document.createElement('div');
+    content.textContent = d.output;
+    out.appendChild(h2);
+    out.appendChild(content);
+  } catch (e) {
+    while (out.firstChild) out.removeChild(out.firstChild);
+    const errEl = document.createElement('div');
+    errEl.textContent = 'Fout: ' + e.message;
+    out.appendChild(errEl);
+  }
+}
+
+async function saveNotes(id, value) {
+  if (!state) return;
+  state.phases[id] = Object.assign({}, state.phases[id] || {}, { notes: value });
+  if (!online) return;
+  await fetch(API + '/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phases: { [id]: { notes: value } } }),
+  }).catch(() => {});
+  const s = document.getElementById('saved-' + id);
+  if (s) { s.classList.add('show'); setTimeout(() => s.classList.remove('show'), 2000); }
+}
+
+async function refreshStatus() {
+  if (!online) return;
+  try {
+    const r = await fetch(API + '/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd:'git-branch' }) });
+    const d = await r.json();
+    const el = document.getElementById('sbbranch');
+    el.textContent = '⎇ ' + (d.output || '?');
+    el.className = 'sb-chip';
+  } catch {}
+  try {
+    const r = await fetch(API + '/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cmd:'ci-list' }) });
+    const d = await r.json();
+    const el = document.getElementById('sbci');
+    if (!d.success || !d.output) { el.textContent = 'CI ?'; el.className = 'sb-chip'; return; }
+    const ok   = d.output.includes('success') || d.output.includes('completed');
+    const fail = d.output.includes('failure') || d.output.includes('fail');
+    el.textContent = ok ? 'CI ✅' : fail ? 'CI ❌' : 'CI ⟳';
+    el.className = 'sb-chip ' + (ok ? 'ok' : fail ? 'err' : '');
+  } catch {}
+}
+
+function toggle(h) { h.parentElement.classList.toggle('open'); }
+
+init();
+</script>
+</body>
+</html>
