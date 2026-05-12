@@ -108,7 +108,33 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pp{background:#4a1d6b;color:#f0abfc} .ps{background:#713f12;color:#fde68a}
 .pr{background:#7c2d12;color:#fdba74} .px{background:#7f1d1d;color:#fca5a5}
 .po{background:#065f46;color:#6ee7b7} .pu{background:#312e81;color:#c7d2fe}
-@media(max-width:720px){.timeline,.header,.legend,#statusbar,#pgwrap{padding-left:16px;padding-right:16px}.phase-body.c2,.phase-body.c3{grid-template-columns:1fr}}
+/* ── Horizontal pipeline ──────────────────────────────────────── */
+.timeline,.connector{display:none!important}
+#h-pipeline-wrap{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 40px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+#h-pipeline{display:flex;align-items:flex-start;gap:0;min-width:max-content}
+.h-card{min-width:152px;max-width:152px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;flex-shrink:0;position:relative;user-select:none}
+.h-card:hover{border-color:#3b82f6;background:#0d1525}
+.h-card.selected{border-color:var(--ip);background:#0a1829;box-shadow:0 0 0 1px var(--ip)}
+.h-card.current{border-color:var(--ok);background:#061a0e}
+.h-card.done{opacity:.65}
+.h-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-bottom:8px;flex-shrink:0}
+.h-name{font-size:12px;font-weight:600;color:#fff;margin-bottom:3px;line-height:1.3;min-height:32px}
+.h-pct{font-size:10px;color:var(--muted);margin-bottom:6px}
+.h-status{font-size:11px;margin-bottom:8px}
+.h-status.not_started{color:var(--muted)}
+.h-status.in_progress{color:#93c5fd;font-weight:600}
+.h-status.completed{color:var(--ok)}
+.h-card-start{width:100%;padding:4px 0;border-radius:5px;background:#1e3a5f;color:#93c5fd;border:1px solid var(--ip);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
+.h-card-start:hover{background:#1a3050}
+.h-arrow{display:flex;align-items:flex-start;padding-top:22px;padding-left:2px;padding-right:2px;color:#334155;font-size:18px;flex-shrink:0}
+/* ── Detail panel ─────────────────────────────────────────────── */
+#h-detail{padding:24px 40px;display:none}
+#h-detail-hdr{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+#h-detail-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+#h-detail-title{font-size:18px;font-weight:700;color:#fff;flex:1}
+#h-detail-content>.phase-body{display:grid!important}
+.h-empty{color:var(--muted);font-size:13px;padding:40px 0;text-align:center}
+@media(max-width:720px){.header,.legend,#statusbar,#pgwrap,#h-pipeline-wrap,#h-detail{padding-left:16px;padding-right:16px}.phase-body.c2,.phase-body.c3{grid-template-columns:1fr}}
 /* Start fase button */
 .start-fase-btn{padding:4px 14px;border-radius:6px;background:#1e3a5f;color:#93c5fd;border:1px solid var(--ip);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}
 .start-fase-btn:hover{background:#1a3050}
@@ -174,6 +200,21 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <span id="pgpct">0%</span>
   <div class="pdots" id="pdots"></div>
   <div id="cp-wrap" style="display:none">📍 <span id="cp-name"></span></div>
+</div>
+
+<div id="h-pipeline-wrap">
+  <div id="h-pipeline"></div>
+</div>
+
+<div id="h-detail">
+  <div id="h-detail-hdr">
+    <div id="h-detail-num" class="h-num"></div>
+    <div id="h-detail-title">Selecteer een fase</div>
+    <div id="h-detail-status"></div>
+  </div>
+  <div id="h-detail-content">
+    <div class="h-empty">← Klik een fase in de tijdlijn om details te zien</div>
+  </div>
 </div>
 
 <div class="timeline">
@@ -646,6 +687,28 @@ const API = 'http://localhost:7842';
 let state = null, online = false;
 const timers = {};
 
+const PHASE_META = {
+  market_research:    { num:'0',  name:'Market\nResearch',   pct:'60% auto',  bg:'#0d2230', fg:'#67e8f9' },
+  initiation:         { num:'1',  name:'Initiation',          pct:'90% auto',  bg:'#312e81', fg:'#a5b4fc' },
+  discovery:          { num:'0',  name:'Discovery\n& Scoping',pct:'70% auto',  bg:'#78350f', fg:'#fcd34d' },
+  feature_collection: { num:'1',  name:'Feature-\ncollectie', pct:'75% auto',  bg:'#78350f', fg:'#fcd34d' },
+  architecture:       { num:'2',  name:'Architectuur\n& Setup',pct:'85% auto', bg:'#1e3a5f', fg:'#7dd3fc' },
+  core_domain:        { num:'3',  name:'Core-\ndomein',       pct:'90% auto',  bg:'#2d1b6b', fg:'#c4b5fd' },
+  infrastructure:     { num:'4',  name:'Infra-\nstructuur',   pct:'88% auto',  bg:'#0c4a6e', fg:'#67e8f9' },
+  vertical_slice:     { num:'5',  name:'Vertical\nSlice',     pct:'90% auto',  bg:'#14532d', fg:'#86efac' },
+  features:           { num:'6',  name:'Features\nbouwen',    pct:'95% auto',  bg:'#14532d', fg:'#86efac' },
+  polish:             { num:'7',  name:'Polish &\nAccess.',   pct:'80% auto',  bg:'#4a1d6b', fg:'#f0abfc' },
+  stabilisation:      { num:'8',  name:'Stabili-\nsatie',     pct:'85% auto',  bg:'#713f12', fg:'#fde68a' },
+  app_store_readiness:{ num:'9',  name:'App Store\nReadiness',pct:'92% auto',  bg:'#7c2d12', fg:'#fdba74' },
+  pre_go_to_apple:    { num:'10', name:'Pre-Go-\nTo-Apple',   pct:'90% auto',  bg:'#7f1d1d', fg:'#fca5a5' },
+  publication:        { num:'11', name:'Publicatie',           pct:'85% auto',  bg:'#7f1d1d', fg:'#fca5a5' },
+  post_launch:        { num:'12', name:'Post-\nLaunch',        pct:'70% auto',  bg:'#065f46', fg:'#6ee7b7' },
+  update_cycle:       { num:'∞',  name:'Update\nCycle',        pct:'95% auto',  bg:'#312e81', fg:'#c7d2fe' },
+};
+
+const phaseBodies = new Map();
+let selectedPhaseId = null;
+
 const PHASE_CMDS = {
   market_research:     { claude:['/competitor-research'],                                          shell:['git-status'] },
   initiation:          { claude:['/new-app','/setup-certs'],                                       shell:[] },
@@ -679,14 +742,24 @@ async function init() {
     setServerUI(true);
     applyState();
     injectPanels();
+    buildPipeline();
+    autoSelectPhase();
     refreshStatus();
   } catch {
     online = false;
     setServerUI(false);
     document.getElementById('offline-banner').classList.add('show');
-    // Still inject panels so toggle/UI works
     injectPanels();
+    buildPipeline();
+    autoSelectPhase();
   }
+}
+
+function autoSelectPhase() {
+  // Select the first in_progress phase, or the first phase
+  const phases = Object.keys(PHASE_META);
+  const inProgress = state && phases.find(id => state.phases?.[id]?.status === 'in_progress');
+  selectPhase(inProgress || phases[0]);
 }
 
 function setServerUI(on) {
@@ -719,10 +792,22 @@ function applyState() {
     if (s === 'in_progress' && !currentPhase) currentPhase = id;
     const na = document.getElementById('notes-' + id);
     if (na && ph.notes) na.value = ph.notes;
-    // Start button visibility
+    // Start button visibility (in original phase-group header)
     const sb = document.getElementById('start-btn-' + id);
     if (sb) sb.style.display = (s === 'not_started') ? '' : 'none';
-    // Current phase border highlight
+    // Sync pipeline card status
+    const hst = document.getElementById('h-st-' + id);
+    if (hst) { hst.className = 'h-status ' + s; hst.textContent = STATUS_TXT[s] || s; }
+    const hCard = document.querySelector('.h-card[data-phase="' + id + '"]');
+    if (hCard) {
+      hCard.classList.toggle('current', s === 'in_progress');
+      hCard.classList.toggle('done', s === 'completed');
+      hCard.classList.toggle('selected', id === selectedPhaseId);
+      // Show/hide start button in pipeline card
+      const hStartBtn = document.getElementById('h-start-' + id);
+      if (hStartBtn) hStartBtn.style.display = (s === 'not_started') ? '' : 'none';
+    }
+    // Current phase border highlight (in original hidden DOM)
     const grp = document.querySelector('[data-phase="' + id + '"]');
     if (grp) grp.classList.toggle('current-phase', s === 'in_progress');
     // Restore manual steps done state
@@ -748,10 +833,14 @@ function applyState() {
 }
 
 function updatePill(id, status) {
+  // Pill may be in detail header (when phase is selected) or in hidden phase-group
   const p = document.getElementById('pill-' + id);
   if (!p) return;
   p.className = 'spill ' + status;
   p.textContent = STATUS_TXT[status] || status;
+  // Sync pipeline card status text
+  const hst = document.getElementById('h-st-' + id);
+  if (hst) { hst.className = 'h-status ' + status; hst.textContent = STATUS_TXT[status] || status; }
 }
 
 async function cycleStatus(id, e) {
@@ -987,6 +1076,138 @@ async function refreshStatus() {
 }
 
 function toggle(h) { h.parentElement.classList.toggle('open'); }
+
+function buildPipeline() {
+  const pipe = document.getElementById('h-pipeline');
+  if (!pipe) return;
+  while (pipe.firstChild) pipe.removeChild(pipe.firstChild);
+
+  const phases = Object.keys(PHASE_META);
+  phases.forEach((id, i) => {
+    const meta = PHASE_META[id];
+    const status = state?.phases?.[id]?.status || 'not_started';
+
+    const card = document.createElement('div');
+    card.className = 'h-card' + (status === 'completed' ? ' done' : '') + (status === 'in_progress' ? ' current' : '');
+    card.dataset.phase = id;
+    card.addEventListener('click', () => selectPhase(id));
+
+    const num = document.createElement('div');
+    num.className = 'h-num';
+    num.textContent = meta.num;
+    num.style.background = meta.bg;
+    num.style.color = meta.fg;
+    card.appendChild(num);
+
+    const name = document.createElement('div');
+    name.className = 'h-name';
+    name.textContent = meta.name;
+    card.appendChild(name);
+
+    const pct = document.createElement('div');
+    pct.className = 'h-pct';
+    pct.textContent = meta.pct;
+    card.appendChild(pct);
+
+    const st = document.createElement('div');
+    st.className = 'h-status ' + status;
+    st.id = 'h-st-' + id;
+    st.textContent = STATUS_TXT[status] || status;
+    card.appendChild(st);
+
+    if (status === 'not_started') {
+      const startBtn = document.createElement('button');
+      startBtn.className = 'h-card-start';
+      startBtn.id = 'h-start-' + id;
+      startBtn.textContent = '▶ Start';
+      startBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        setStatus(id, 'in_progress');
+        selectPhase(id);
+      });
+      card.appendChild(startBtn);
+    }
+
+    pipe.appendChild(card);
+
+    if (i < phases.length - 1) {
+      const arrow = document.createElement('div');
+      arrow.className = 'h-arrow';
+      arrow.textContent = '→';
+      pipe.appendChild(arrow);
+    }
+  });
+
+  // Store body references after injectPanels has run
+  Object.keys(PHASE_META).forEach(id => {
+    const grp = document.querySelector('[data-phase="' + id + '"]');
+    const body = grp && grp.querySelector('.phase-body');
+    if (body) phaseBodies.set(id, body);
+  });
+}
+
+function selectPhase(id) {
+  const detailContent = document.getElementById('h-detail-content');
+  const detailTitle   = document.getElementById('h-detail-title');
+  const detailNum     = document.getElementById('h-detail-num');
+  const detailStatus  = document.getElementById('h-detail-status');
+  const detailWrap    = document.getElementById('h-detail');
+  if (!detailContent) return;
+
+  // Return previous body to its phase-group
+  if (selectedPhaseId && selectedPhaseId !== id) {
+    const prev = phaseBodies.get(selectedPhaseId);
+    if (prev) {
+      const prevGrp = document.querySelector('[data-phase="' + selectedPhaseId + '"]');
+      if (prevGrp) prevGrp.appendChild(prev);
+    }
+  }
+
+  selectedPhaseId = id;
+
+  // Clear detail content
+  while (detailContent.firstChild) detailContent.removeChild(detailContent.firstChild);
+
+  // Move body into detail
+  const body = phaseBodies.get(id);
+  if (body) {
+    detailContent.appendChild(body);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'h-empty';
+    empty.textContent = 'Geen detailinhoud beschikbaar voor deze fase.';
+    detailContent.appendChild(empty);
+  }
+
+  // Update detail header
+  const meta = PHASE_META[id];
+  if (meta) {
+    detailNum.textContent = meta.num;
+    detailNum.style.background = meta.bg;
+    detailNum.style.color = meta.fg;
+  }
+  detailTitle.textContent = PHASE_NAMES[id] || id.replace(/_/g, ' ');
+
+  // Update status in detail header
+  const status = state?.phases?.[id]?.status || 'not_started';
+  while (detailStatus.firstChild) detailStatus.removeChild(detailStatus.firstChild);
+  const pill = document.createElement('span');
+  pill.id = 'pill-' + id;
+  pill.className = 'spill ' + status;
+  pill.textContent = STATUS_TXT[status] || status;
+  pill.title = 'Klik om status te wisselen';
+  pill.addEventListener('click', e => cycleStatus(id, e));
+  detailStatus.appendChild(pill);
+
+  // Highlight card
+  document.querySelectorAll('.h-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.phase === id);
+  });
+
+  // Show detail panel and scroll
+  detailWrap.style.display = 'block';
+  detailWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // MANUAL STEPS — handmatige stappen met instructies en verificatie
